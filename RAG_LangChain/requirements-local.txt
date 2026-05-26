@@ -1,0 +1,12 @@
+# Local-mode dependencies — installed lazily on first use when RAG_MODE=local
+# or EMBEDDING_PROVIDER=local. See app/langchain_components.py.
+#
+# To pre-bake into the image (faster first request, ~600 MB larger image):
+#   RUN pip install torch==2.4.1+cpu --index-url https://download.pytorch.org/whl/cpu
+#   RUN pip install -r requirements-local.txt
+
+chromadb==0.5.7
+langchain-chroma==0.1.4
+langchain-ollama==0.2.0
+langchain-huggingface==0.1.0
+sentence-transformers==3.1.1

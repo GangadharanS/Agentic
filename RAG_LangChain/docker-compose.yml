@@ -3,9 +3,9 @@ version: '3.8'
 services:
   rag-api:
     build: .
-    container_name: rag-api
+    container_name: rag-langchain-api
     ports:
-      - "8085:8085"
+      - "8086:8086"
     environment:
       # Mode: local (ChromaDB + Ollama) or cloud (Pinecone + Groq/Gemini)
       - RAG_MODE=${RAG_MODE:-local}
@@ -15,9 +15,9 @@ services:
       - OLLAMA_TIMEOUT=600
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
-      # Cloud stack (Option A) — set in .env when RAG_MODE=cloud
+      # Cloud stack — set in .env when RAG_MODE=cloud
       - PINECONE_API_KEY=${PINECONE_API_KEY:-}
-      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-rag-index}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-rag-index-langchain}
       - PINECONE_CLOUD=${PINECONE_CLOUD:-aws}
       - PINECONE_REGION=${PINECONE_REGION:-us-east-1}
       - PINECONE_AUTO_RECREATE_INDEX=${PINECONE_AUTO_RECREATE_INDEX:-false}
@@ -26,11 +26,10 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
       - LLM_PROVIDER=${LLM_PROVIDER:-groq}
-      # Embeddings — local (sentence-transformers) or gemini (free cloud)
+      # Embeddings — local (HuggingFace) or gemini (LangChain Google GenAI)
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-local}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-text-embedding-004}
-      # Leave blank to auto-detect (384 local, 768 gemini text-embedding-004)
+      - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-}
       - CHUNK_SIZE=500
       - CHUNK_OVERLAP=50
@@ -44,11 +43,11 @@ services:
 
   chromadb:
     image: chromadb/chroma:0.5.7
-    container_name: rag-chromadb
+    container_name: rag-langchain-chromadb
     profiles:
       - local
     ports:
-      - "8200:8000"
+      - "8201:8000"
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped

@@ -1,0 +1,25 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+python-multipart==0.0.9
+pydantic==2.9.2
+
+# LangChain core + cloud integrations (installed at build time)
+langchain==0.3.1
+langchain-community==0.3.1
+langchain-pinecone==0.2.0
+langchain-google-genai==2.0.0
+langchain-groq==0.2.0
+
+# Vector DB client (cloud)
+pinecone-client==5.0.1
+
+# Document loading
+pypdf==4.3.1
+unstructured==0.15.13
+
+# HTTP client (health checks)
+httpx==0.27.2
+
+# Local-only packages (chromadb, langchain-chroma, langchain-ollama,
+# langchain-huggingface, torch) are in requirements-local.txt and installed
+# lazily at runtime when RAG_MODE=local or EMBEDDING_PROVIDER=local.

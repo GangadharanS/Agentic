@@ -16,10 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Base requirements only. torch + sentence-transformers are deliberately NOT
 # installed here — they are lazily installed at first use when
-# EMBEDDING_PROVIDER=local. See app/embedding_provider.py and
+# EMBEDDING_PROVIDER=local. See app/langchain_components.py and
 # requirements-local.txt for details. This keeps the image ~600 MB smaller
 # and the first build ~4 min faster for cloud-mode users.
-COPY requirements.txt .
+COPY requirements.txt requirements-local.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
@@ -27,6 +27,6 @@ COPY app/ ./app/
 
 RUN mkdir -p /app/data
 
-EXPOSE 8085
+EXPOSE 8086
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8085"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8086"]

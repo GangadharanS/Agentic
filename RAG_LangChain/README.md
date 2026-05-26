@@ -1,12 +1,15 @@
-# RAG System - Retrieval Augmented Generation
+# RAG LangChain — Retrieval Augmented Generation
 
-A general-purpose RAG system built with FastAPI, with **pluggable providers** for each layer:
+A RAG system built with **FastAPI + LangChain**, using LangChain's native integrations for each layer:
 
-| Layer | Local option | Cloud option (free tier) |
-|-------|---------------|---------------------------|
-| **Vector DB** | ChromaDB (Docker) | Pinecone |
-| **LLM** | Ollama / Mistral (host) | Groq (Llama) or Gemini Flash |
-| **Embeddings** | sentence-transformers `all-MiniLM-L6-v2` (384 dim) | Gemini `gemini-embedding-001` (3072 dim, truncatable to 768/1536) |
+| Layer | LangChain integration | Local option | Cloud option (free tier) |
+|-------|----------------------|--------------|---------------------------|
+| **Vector DB** | `langchain-chroma` / `langchain-pinecone` | ChromaDB (Docker) | Pinecone |
+| **LLM** | `langchain-ollama` / `langchain-groq` / `langchain-google-genai` | Ollama / Mistral (host) | Groq (Llama) or Gemini Flash |
+| **Embeddings** | `langchain-huggingface` / `langchain-google-genai` | `all-MiniLM-L6-v2` (384 dim) | `gemini-embedding-001` (3072 dim, truncatable) |
+| **RAG chain** | `create_retrieval_chain` + `create_stuff_documents_chain` | — | — |
+
+Runs on **port 8086** (separate from the custom `RAG/` project on 8085).
 
 Two top-level modes via `RAG_MODE`:
 
@@ -24,20 +27,33 @@ The embedding layer is **independent** of `RAG_MODE` — set `EMBEDDING_PROVIDER
 
 ## Architecture
 
+```
+/ingest  →  LangChain document loaders + RecursiveCharacterTextSplitter
+         →  vectorstore.add_documents()  (Chroma / Pinecone)
+
+/query   →  vectorstore.as_retriever()
+         →  create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
+         →  answer + source documents
+```
+
+Key files:
+- `app/langchain_components.py` — LangChain factories for embeddings, LLM, vector stores
+- `app/rag_engine.py` — `create_retrieval_chain` RAG pipeline
+- `app/document_loader.py` — LangChain document loaders + text splitter
+
 ### Local mode (`RAG_MODE=local`)
 
-- **FastAPI** (port 8085) — REST API (Docker)
-- **ChromaDB** (port 8200) — vector storage (Docker)
+- **FastAPI** (port **8086**) — REST API (Docker)
+- **ChromaDB** (port **8201**) — vector storage (Docker)
 - **Ollama** (port 11434) — LLM on the host (`host.docker.internal`)
-- **Embeddings** — `EMBEDDING_PROVIDER=local` (sentence-transformers in container) or `gemini` (cloud)
+- **Embeddings** — `HuggingFaceEmbeddings` or `GoogleGenerativeAIEmbeddings`
 
 ### Cloud mode (`RAG_MODE=cloud`)
 
-- **FastAPI** (port 8085) — REST API (Docker)
-- **Pinecone** — managed vector DB (free starter tier)
-- **Groq** or **Gemini** — cloud LLM (free tier)
-- **Embeddings** — `EMBEDDING_PROVIDER=local` (sentence-transformers in container) or `gemini` (cloud)
-- ChromaDB container still starts but is unused
+- **FastAPI** (port **8086**) — REST API (Docker)
+- **Pinecone** — managed vector DB via `PineconeVectorStore`
+- **Groq** or **Gemini** — cloud LLM via `ChatGroq` / `ChatGoogleGenerativeAI`
+- **Embeddings** — `GoogleGenerativeAIEmbeddings` (recommended) or lazy `HuggingFaceEmbeddings`
 
 ---
 
@@ -53,7 +69,7 @@ The embedding layer is **independent** of `RAG_MODE` — set `EMBEDDING_PROVIDER
 ## Setup
 
 ```bash
-cd RAG
+cd RAG_LangChain
 cp .env.example .env
 # Edit .env — set RAG_MODE and API keys as needed
 ```
@@ -86,7 +102,7 @@ docker-compose up --build -d
 ### 4. Health check
 
 ```bash
-curl http://localhost:8085/health
+curl http://localhost:8086/health
 ```
 
 Expected (service keys reflect the active providers):
@@ -142,7 +158,7 @@ docker-compose up --build -d
 ### 4. Health check
 
 ```bash
-curl http://localhost:8085/health
+curl http://localhost:8086/health
 ```
 
 Expected (service keys reflect the active providers):
@@ -202,7 +218,7 @@ EMBEDDING_DIMENSION=
 
 ```bash
 docker-compose up -d --build rag-api
-curl http://localhost:8085/health
+curl http://localhost:8086/health
 ```
 
 Expected:

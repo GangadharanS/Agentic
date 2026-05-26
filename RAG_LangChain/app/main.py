@@ -8,7 +8,11 @@ from app.config import UPLOAD_DIR, DEFAULT_COLLECTION, RAG_MODE
 from app.document_loader import load_and_chunk, SUPPORTED_EXTENSIONS
 from app.rag_engine import rag_engine
 
-app = FastAPI(title="RAG API", version="1.0.0", description="Retrieval Augmented Generation API")
+app = FastAPI(
+    title="RAG LangChain API",
+    version="2.0.0",
+    description="Retrieval Augmented Generation API using LangChain components",
+)
 
 app.add_middleware(
     CORSMiddleware,
