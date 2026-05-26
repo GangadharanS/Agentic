@@ -1,0 +1,206 @@
+plugins {
+    id 'com.jfrog.artifactory' version '5.+'
+    id 'maven-publish'
+}
+
+// Project configuration
+group = project.findProperty('group') ?: 'com.trimble.connect.mcp'
+version = project.findProperty('version') ?: '1.0.0'
+
+// Docker configuration variables
+ext {
+    dockerRegistry = project.findProperty('dockerRegistry') ?: 'trimble.jfrog.io'
+    dockerRepository = project.findProperty('dockerRepository') ?: 'collaboration-platform-tconnect-docker'
+    dockerImageName = project.findProperty('dockerImageName') ?: 'ai-agent-server/mcp-tools'
+    dockerImageTag = project.findProperty('dockerImageTag') ?: version
+    
+    // Generate timestamp for unique tags
+    timestamp = new Date().format('yyyyMMdd-HHmmss')
+    
+    // Full image paths
+    localImageName = "mcp-tools:${version}"
+    remoteImageName = "${dockerRegistry}/${dockerRepository}/${dockerImageName}"
+    remoteImageWithVersion = "${remoteImageName}:${version}"
+    remoteImageWithTimestamp = "${remoteImageName}:${timestamp}"
+}
+
+// Task to build Docker image
+task buildDockerImage(type: Exec) {
+    group = 'docker'
+    description = 'Build MCP Tools Docker image'
+    
+    commandLine 'docker', 'build', '-t', localImageName, '.'
+}
+
+// Task to login to Docker registry
+task dockerLogin(type: Exec) {
+    group = 'docker'
+    description = 'Login to Docker registry'
+    
+    def artifactoryUser = project.findProperty('artifactory_publish_user')
+    def artifactoryPassword = project.findProperty('artifactory_publish_password')
+    
+    commandLine 'sh', '-c', "echo '${artifactoryPassword}' | docker login ${dockerRegistry} --username ${artifactoryUser} --password-stdin"
+}
+
+// Task to tag Docker image for Artifactory with version
+task tagDockerImage(type: Exec) {
+    group = 'docker'
+    description = 'Tag Docker image for Artifactory with version'
+    dependsOn buildDockerImage
+    
+    commandLine 'docker', 'tag', localImageName, remoteImageWithVersion
+}
+
+// Task to tag with timestamp
+task tagDockerImageWithTimestamp(type: Exec) {
+    group = 'docker'
+    description = 'Tag Docker image with timestamp'
+    dependsOn buildDockerImage
+    
+    commandLine 'docker', 'tag', localImageName, remoteImageWithTimestamp
+}
+
+// Task to push Docker image with version
+task pushDockerImage(type: Exec) {
+    group = 'docker'
+    description = 'Push Docker image to Artifactory with version'
+    dependsOn dockerLogin, tagDockerImage
+    
+    commandLine 'docker', 'push', remoteImageWithVersion
+}
+
+// Task to push Docker image with timestamp
+task pushDockerImageWithTimestamp(type: Exec) {
+    group = 'docker'
+    description = 'Push Docker image with timestamp to Artifactory'
+    dependsOn dockerLogin, tagDockerImageWithTimestamp
+    
+    commandLine 'docker', 'push', remoteImageWithTimestamp
+}
+
+// Combined task to build and push with timestamp
+task buildAndPush {
+    group = 'docker'
+    description = 'Build and push Docker image to Artifactory with timestamp'
+    dependsOn pushDockerImageWithTimestamp
+}
+
+// Maven publishing configuration for Docker repository
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'ai-agent-server'
+            artifactId = 'mcp-tools'
+            version = project.version
+            
+            // Create a custom artifact with Docker information
+            artifact(file('Dockerfile')) {
+                classifier = 'dockerfile'
+                extension = 'txt'
+            }
+            
+            // Add build info
+            artifact(file('build.gradle')) {
+                classifier = 'build-config'
+                extension = 'gradle'
+            }
+            
+            // Add Docker image info (will be created by createDockerImageInfo task)
+            artifact(file('docker-image-info.md')) {
+                classifier = 'docker-info'
+                extension = 'md'
+            }
+            
+            pom {
+                name = 'MCP Tools - AI Agent Server'
+                description = 'Docker image and configuration for MCP Tools AI Agent Server published to collaboration-platform-tconnect-docker'
+                
+                properties = [
+                    'docker.image.name': "${dockerRegistry}/${dockerRepository}/${dockerImageName}",
+                    'docker.image.tag': dockerImageTag,
+                    'docker.registry': dockerRegistry,
+                    'target.repository': dockerRepository,
+                    'ai.agent.server.path': 'ai-agent-server/mcp-tools',
+                    'timestamp': new Date().format('yyyy-MM-dd HH:mm:ss')
+                ]
+            }
+        }
+    }
+}
+
+// Artifactory configuration for Docker repository
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+    
+    publish {
+        repository {
+            repoKey = "${dockerRepository}"
+            username = "${artifactory_publish_user}"
+            password = "${artifactory_publish_password}"
+        }
+        
+        defaults {
+            publications('maven')
+        }
+    }
+}
+
+// Task to create Docker image info file
+task createDockerImageInfo {
+    group = 'publishing'
+    description = 'Create Docker image info file for Maven publishing'
+    
+    doLast {
+        def timestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
+        def dockerInfo = """
+                # MCP Tools - AI Agent Server Docker Image Info
+                Generated: ${timestamp}
+                Version: ${version}
+
+                ## Docker Image Information
+                Registry: ${dockerRegistry}
+                Repository: ${dockerRepository}
+                Image Name: ${dockerImageName}
+                Image Tag: ${dockerImageTag}
+                Full Image Path: ${dockerRegistry}/${dockerRepository}/${dockerImageName}:${dockerImageTag}
+
+                ## Maven Artifact Information
+                Group ID: com.trimble.connect.ai-agent-server
+                Artifact ID: mcp-tools
+                Version: ${version}
+
+                ## Usage
+                To use this Docker image:
+                ```bash
+                docker pull ${dockerRegistry}/${dockerRepository}/${dockerImageName}:${dockerImageTag}
+                docker run -p 8002:80 ${dockerRegistry}/${dockerRepository}/${dockerImageName}:${dockerImageTag}
+                ```
+                """
+        file('docker-image-info.md').text = dockerInfo
+        println "Created docker-image-info.md"
+    }
+}
+
+// Task to show Docker image info
+task dockerInfo {
+    group = 'docker'
+    description = 'Show Docker configuration info'
+    
+    doLast {
+        println "Docker Registry: ${dockerRegistry}"
+        println "Docker Repository: ${dockerRepository}"
+        println "Docker Image Name: ${dockerImageName}"
+        println "Docker Image Tag: ${dockerImageTag}"
+        println "Full Image Path: ${dockerRegistry}/${dockerRepository}/${dockerImageName}:${dockerImageTag}"
+        println "Maven Repository: ${mavenRepository}"
+        println "AI Agent Server Path: ${aiAgentServerPath}"
+    }
+}
+
+// Combined task to build Docker and publish Maven artifacts
+task buildAndPublishArtifacts {
+    group = 'publishing'
+    description = 'Build Docker image and publish Maven artifacts to create ai-agent-server folder'
+    dependsOn buildDockerImage, createDockerImageInfo, artifactoryPublish
+} 

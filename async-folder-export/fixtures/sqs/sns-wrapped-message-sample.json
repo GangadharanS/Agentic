@@ -1,0 +1,12 @@
+{
+  "Type": "Notification",
+  "MessageId": "22b80d92-ee8f-4c3a-937f-sns-message-id",
+  "TopicArn": "arn:aws:sns:us-east-1:000000000000:TcFileServiceTopic",
+  "Subject": null,
+  "Message": "{\"schemaVersion\":\"1.0.0\",\"eventType\":\"connect.export.completed\",\"traceId\":\"c0ffee00-0000-4000-8000-000000000001\",\"jobId\":\"job-abc123\",\"jobType\":\"EXPORT\",\"status\":\"DONE\",\"projectId\":\"proj-456\",\"createdAt\":\"2025-05-07T12:00:00.000Z\",\"updatedAt\":\"2025-05-07T12:15:00.000Z\",\"result\":{\"downloadUrl\":\"https://files.example.invalid/presigned/export.zip\"}}",
+  "Timestamp": "2025-05-07T12:15:01.234Z",
+  "SignatureVersion": "1",
+  "Signature": "EXAMPLE_SIGNATURE",
+  "SigningCertURL": "https://sns.us-east-1.amazonaws.com/cert.pem",
+  "UnsubscribeURL": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=..."
+}

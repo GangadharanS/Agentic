@@ -1,0 +1,238 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Export revision path — ExportRevisionQueue (+DLQ), SNS subscription on TcFileServiceTopic,
+  ExportUpdateHandler (DynamoDB stream → SNS), ExportRevisionLogger (SQS → Monolith), dedup table, alarms.
+
+Parameters:
+  JobsTableStreamArn:
+    Type: String
+    Description: DynamoDB stream ARN for the file_service_jobs (or equivalent) table.
+  ExistingSnsTopicArn:
+    Type: String
+    Description: Existing TcFileServiceTopic ARN (export events publish here).
+  MonolithRevisionLogUrl:
+    Type: String
+    Description: Full URL for POST logRevisionAsync (or team-specific path).
+  RevisionLogAuthHeader:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Optional Authorization header value (e.g. Bearer token); leave empty if unused.
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 256
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+
+Resources:
+  ExportNotificationDedupTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: !Sub '${AWS::StackName}-export-sns-dedup'
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ExportRevisionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-export-revision-dlq'
+      MessageRetentionPeriod: 1209600
+
+  ExportRevisionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-export-revision-queue'
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ExportRevisionDLQ.Arn
+        maxReceiveCount: 5
+
+  ExportRevisionQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ExportRevisionQueue
+      PolicyDocument:
+        Statement:
+          - Sid: AllowSNSMessages
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ExportRevisionQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref ExistingSnsTopicArn
+
+  ExportRevisionTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn: !Ref ExistingSnsTopicArn
+      Endpoint: !GetAtt ExportRevisionQueue.Arn
+      RawMessageDelivery: false
+      FilterPolicyScope: MessageAttributes
+      FilterPolicy:
+        eventType:
+          - connect.export.completed
+        jobType:
+          - EXPORT
+
+  ExportUpdateHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-export-update-handler'
+      CodeUri: ../lambda/export_update_handler/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref ExistingSnsTopicArn
+          DEDUP_TABLE_NAME: !Ref ExportNotificationDedupTable
+          DEDUP_TTL_SECONDS: '2592000'
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref ExistingSnsTopicArn
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ExportNotificationDedupTable
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !Ref JobsTableStreamArn
+            StartingPosition: LATEST
+            BatchSize: 25
+            MaximumBatchingWindowInSeconds: 2
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName":["MODIFY"]}'
+
+  ExportRevisionLoggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-export-revision-logger'
+      CodeUri: ../lambda/export_revision_logger/
+      Handler: handler.handler
+      Environment:
+        Variables:
+          MONOLITH_REVISION_LOG_URL: !Ref MonolithRevisionLogUrl
+          REVISION_LOG_AUTH_HEADER: !Ref RevisionLogAuthHeader
+          HTTP_TIMEOUT_SECONDS: '30'
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ExportRevisionQueue.Arn
+            BatchSize: 5
+            MaximumBatchingWindowInSeconds: 2
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  ExportRevisionQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-revision-queue-old-message'
+      AlarmDescription: Oldest message in ExportRevisionQueue — investigate processor or Monolith.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ExportRevisionQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  ExportRevisionDLQDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-revision-dlq-depth'
+      AlarmDescription: Messages landed on revision DLQ after retries.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ExportRevisionDLQ.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  ExportUpdateHandlerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-export-update-handler-errors'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ExportUpdateHandlerFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  ExportRevisionLoggerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-export-revision-logger-errors'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ExportRevisionLoggerFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  SnsPublishFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-sns-notifications-failed'
+      AlarmDescription: Failed deliveries from TcFileServiceTopic (includes subscription errors).
+      Namespace: AWS/SNS
+      MetricName: NumberOfNotificationsFailed
+      Dimensions:
+        - Name: TopicName
+          Value: !Select [5, !Split [':', !Ref ExistingSnsTopicArn]]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  ExportRevisionQueueUrl:
+    Value: !Ref ExportRevisionQueue
+  ExportRevisionQueueArn:
+    Value: !GetAtt ExportRevisionQueue.Arn
+  ExportNotificationDedupTableName:
+    Value: !Ref ExportNotificationDedupTable
+  ExportUpdateHandlerArn:
+    Value: !GetAtt ExportUpdateHandlerFunction.Arn
+  ExportRevisionLoggerArn:
+    Value: !GetAtt ExportRevisionLoggerFunction.Arn

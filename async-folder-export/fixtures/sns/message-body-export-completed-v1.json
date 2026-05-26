@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "eventType": "connect.export.completed",
+  "traceId": "c0ffee00-0000-4000-8000-000000000001",
+  "jobId": "job-abc123",
+  "jobType": "EXPORT",
+  "status": "DONE",
+  "projectId": "proj-456",
+  "createdBy": {
+    "id": "wuguxgux",
+    "tiduuid": "users:tiduuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  },
+  "createdAt": "2025-05-07T12:00:00.000Z",
+  "updatedAt": "2025-05-07T12:15:00.000Z",
+  "input": {
+    "items": [
+      { "id": "fold-001", "type": "FOLDER" },
+      { "id": "file-002", "type": "FILE" }
+    ]
+  },
+  "result": {
+    "downloadUrl": "https://files.example.invalid/presigned/export.zip"
+  }
+}

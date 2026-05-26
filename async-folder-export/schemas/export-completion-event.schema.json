@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trimble-connect.local/schemas/connect-export-event-v1.json",
+  "title": "TcFileServiceTopic export notification",
+  "description": "JSON body published to SNS (Message field). Use message attributes for subscription filter policies.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "eventType",
+    "jobId",
+    "jobType",
+    "status",
+    "projectId",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "Semantic version of this payload shape (e.g. 1.0.0)."
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["connect.export.completed", "connect.export.failed"]
+    },
+    "traceId": {
+      "type": "string",
+      "description": "Optional correlation id for logs and tracing (pass through to /logRevisionAsync if supported)."
+    },
+    "jobId": { "type": "string", "minLength": 1 },
+    "jobType": {
+      "type": "string",
+      "enum": ["EXPORT", "FOLDER_DELETION"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["DONE", "FAILED"]
+    },
+    "projectId": { "type": "string", "minLength": 1 },
+    "createdBy": {
+      "type": "object",
+      "description": "User map as stored on the job (tc id, tiduuid, etc.).",
+      "additionalProperties": true
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "input": {
+      "type": "object",
+      "description": "Snapshot of job input map from DynamoDB.",
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "description": "For DONE: downloadUrl / fs metadata. For FAILED: error object.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

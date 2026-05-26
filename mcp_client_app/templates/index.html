@@ -1,0 +1,3639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Agent</title>
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e4e4e7;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            min-height: 0; /* Important for nested flex scrolling */
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #71717a;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #a1a1aa;
+        }
+
+        .tab.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a78bfa;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 0 16px 16px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0; /* Important for flex child scrolling */
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Custom scrollbar styling */
+        .tab-content::-webkit-scrollbar,
+        .comments-list::-webkit-scrollbar,
+        .chat-messages::-webkit-scrollbar,
+        .docs-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tab-content::-webkit-scrollbar-track,
+        .comments-list::-webkit-scrollbar-track,
+        .chat-messages::-webkit-scrollbar-track,
+        .docs-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .tab-content::-webkit-scrollbar-thumb,
+        .comments-list::-webkit-scrollbar-thumb,
+        .chat-messages::-webkit-scrollbar-thumb,
+        .docs-content::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+
+        .tab-content::-webkit-scrollbar-thumb:hover,
+        .comments-list::-webkit-scrollbar-thumb:hover,
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .docs-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+
+        /* Search Section */
+        .search-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .search-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            color: #e4e4e7;
+        }
+
+        .search-options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+
+        .search-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .search-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #6366f1;
+        }
+
+        .search-option label {
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .search-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .search-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-field label {
+            font-size: 0.85rem;
+            color: #a1a1aa;
+            font-weight: 500;
+        }
+
+        .search-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #e4e4e7;
+            font-size: 1rem;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+
+        .search-select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .search-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .search-select option {
+            background: #1a1a2e;
+            color: #e4e4e7;
+            padding: 8px;
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #e4e4e7;
+            font-size: 1rem;
+        }
+
+        .search-input.repo-input {
+            flex: 1.5;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: #71717a;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .review-initiate-btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .review-initiate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .review-initiate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* PR Info Card */
+        .pr-info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .pr-info-card.visible {
+            display: block;
+        }
+
+        .pr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .pr-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e4e4e7;
+        }
+
+        .pr-number {
+            color: #a78bfa;
+        }
+
+        .pr-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.875rem;
+            color: #71717a;
+        }
+
+        .pr-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pr-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .pr-status.open {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .pr-status.closed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .pr-status.merged {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }
+
+        .review-btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 16px;
+        }
+
+        .review-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .review-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Review Comments Section */
+        .review-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            display: none;
+        }
+
+        .branch-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+        }
+
+        .branch-badge {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+        }
+
+        .branch-badge.source {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .branch-badge.dest {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .branch-arrow {
+            color: #71717a;
+            font-size: 0.9rem;
+        }
+
+        .review-section.visible {
+            display: flex;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .review-header h3 {
+            font-size: 1.1rem;
+            color: #e4e4e7;
+        }
+
+        .select-all-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .select-all-container input {
+            width: 18px;
+            height: 18px;
+            accent-color: #6366f1;
+        }
+
+        .comments-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 8px;
+        }
+
+        .comment-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 12px;
+            transition: all 0.2s;
+        }
+
+        .comment-item:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .comment-item.selected {
+            border-color: rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .comment-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #6366f1;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .comment-content {
+            flex: 1;
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .comment-category {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .comment-file-badge {
+            font-size: 0.75rem;
+            color: #a78bfa;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            background: rgba(167, 139, 250, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .comment-line-badge {
+            font-size: 0.7rem;
+            color: #22c55e;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            background: rgba(34, 197, 94, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .comment-severity {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .severity-blocking {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .severity-major {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+
+        .severity-minor {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+
+        .comment-file {
+            font-size: 0.8rem;
+            color: #a78bfa;
+            margin-bottom: 6px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+        }
+
+        .comment-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #e4e4e7;
+        }
+
+        .comment-type {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .comment-type.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .comment-type.warning {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+
+        .comment-type.suggestion {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .comment-type.checklist {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .comment-type.file_review {
+            background: rgba(167, 139, 250, 0.2);
+            color: #a78bfa;
+        }
+
+        /* Apply Fixes Section */
+        .apply-fixes-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .selected-count {
+            font-size: 0.95rem;
+            color: #71717a;
+        }
+
+        .selected-count strong {
+            color: #a78bfa;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .apply-comments-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .apply-comments-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .apply-comments-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .apply-comments-btn.approval-mode {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .apply-comments-btn.approval-mode:hover:not(:disabled) {
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .approval-badge {
+            color: #4ade80;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .apply-fixes-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .apply-fixes-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .apply-fixes-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px;
+            color: #71717a;
+        }
+
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(99, 102, 241, 0.3);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: #71717a;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            color: #a1a1aa;
+            margin-bottom: 8px;
+        }
+
+        /* Detailed Summary Styles */
+        .empty-state.detailed-summary {
+            padding: 40px 30px;
+            align-items: flex-start;
+            text-align: left;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .empty-state.detailed-summary h3 {
+            align-self: center;
+            color: #4ade80;
+            font-size: 1.5rem;
+            margin-bottom: 24px;
+        }
+
+        .empty-state.detailed-summary .empty-state-icon {
+            align-self: center;
+        }
+
+        .summary-section {
+            width: 100%;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .summary-section h4 {
+            color: #60a5fa;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-item {
+            display: flex;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .summary-label {
+            color: #a1a1aa;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .summary-value {
+            color: #e4e4e7;
+        }
+
+        .summary-value strong {
+            color: #fbbf24;
+        }
+
+        .summary-value code {
+            background: rgba(96, 165, 250, 0.15);
+            color: #93c5fd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-right: 4px;
+        }
+
+        .files-list {
+            color: #d4d4d8;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .checks-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .checks-list li {
+            color: #86efac;
+            font-size: 0.9rem;
+            padding: 4px 0;
+        }
+
+        .why-no-issues {
+            background: rgba(74, 222, 128, 0.05);
+            border-color: rgba(74, 222, 128, 0.15);
+        }
+
+        .why-no-issues h4 {
+            color: #4ade80;
+        }
+
+        .why-no-issues p {
+            color: #a1a1aa;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .why-no-issues ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .why-no-issues ul li {
+            color: #d4d4d8;
+            font-size: 0.9rem;
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .why-no-issues ul li::before {
+            content: "•";
+            color: #4ade80;
+            position: absolute;
+            left: 0;
+        }
+
+        /* File Changes Detailed List */
+        .files-section {
+            background: rgba(96, 165, 250, 0.05);
+            border-color: rgba(96, 165, 250, 0.15);
+        }
+
+        .files-section h4 {
+            color: #60a5fa;
+        }
+
+        .file-changes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .file-change-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 12px;
+            transition: background 0.2s;
+        }
+
+        .file-change-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .file-change-item.simple {
+            padding: 8px 12px;
+        }
+
+        .file-change-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-status-icon {
+            font-size: 1rem;
+        }
+
+        .file-name {
+            background: rgba(96, 165, 250, 0.15);
+            color: #93c5fd;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .file-stats {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #a1a1aa;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .file-change-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-left: 28px;
+        }
+
+        .change-item {
+            color: #d4d4d8;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .change-item::before {
+            color: #fbbf24;
+        }
+
+        .more-files {
+            color: #71717a;
+            font-size: 0.85rem;
+            font-style: italic;
+            padding: 8px;
+            text-align: center;
+        }
+
+        /* Placeholder Tab */
+        .placeholder-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #71717a;
+        }
+
+        .placeholder-content h2 {
+            font-size: 1.5rem;
+            color: #a1a1aa;
+            margin-bottom: 8px;
+        }
+
+        /* Documentation Tab */
+        .docs-section {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .docs-section h2 {
+            font-size: 1.5rem;
+            color: #f4f4f5;
+            margin-bottom: 8px;
+        }
+
+        .docs-description {
+            color: #71717a;
+            margin-bottom: 24px;
+        }
+
+        .docs-form {
+            background: rgba(39, 39, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .docs-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .docs-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .docs-group.full-width {
+            grid-column: span 2;
+        }
+
+        .docs-group label {
+            font-size: 0.85rem;
+            color: #a1a1aa;
+        }
+
+        .docs-group select, .docs-group input {
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #f4f4f5;
+            font-size: 0.9rem;
+        }
+
+        .docs-group select:focus, .docs-group input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .docs-group select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .generate-docs-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .generate-docs-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .docs-output {
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .docs-output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: rgba(39, 39, 42, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .docs-output-header h3 {
+            font-size: 1rem;
+            color: #f4f4f5;
+            margin: 0;
+        }
+
+        .docs-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .docs-action-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .docs-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f4f4f5;
+        }
+
+        .docs-content {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #e4e4e7;
+            white-space: pre-wrap;
+        }
+
+        .docs-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            color: #a1a1aa;
+        }
+
+        .progress-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(99, 102, 241, 0.3);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Configuration Tab */
+        .config-section {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .config-section h2 {
+            font-size: 1.5rem;
+            color: #f4f4f5;
+            margin-bottom: 8px;
+        }
+
+        .config-description {
+            color: #71717a;
+            margin-bottom: 24px;
+        }
+
+        .server-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .server-card {
+            background: rgba(39, 39, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .server-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .server-status.connected {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+        }
+
+        .server-status.disconnected {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+        }
+
+        .server-info {
+            flex: 1;
+        }
+
+        .server-name {
+            font-weight: 600;
+            color: #f4f4f5;
+            margin-bottom: 4px;
+        }
+
+        .server-url {
+            font-size: 0.85rem;
+            color: #a78bfa;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .server-desc {
+            font-size: 0.85rem;
+            color: #71717a;
+            margin-top: 4px;
+        }
+
+        .server-source, .server-docs {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .server-source a, .server-docs a {
+            color: #60a5fa;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .server-source a:hover, .server-docs a:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        .server-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .keyword-tag {
+            font-size: 0.7rem;
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .server-tools {
+            margin-top: 10px;
+        }
+
+        .tools-label {
+            font-size: 0.8rem;
+            color: #a1a1aa;
+            margin-right: 8px;
+        }
+
+        .tools-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .tool-tag {
+            font-size: 0.7rem;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .tool-tag.more {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .server-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .server-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f4f4f5;
+        }
+
+        .server-btn.delete:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .add-server-form {
+            background: rgba(39, 39, 42, 0.5);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .add-server-form h3 {
+            font-size: 1.1rem;
+            color: #f4f4f5;
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: #a1a1aa;
+        }
+
+        .form-group input {
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #f4f4f5;
+            font-size: 0.9rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .add-server-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .add-server-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: #ef4444;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+        }
+
+        /* AI Assistant Tab */
+        .assistant-section {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .assistant-section h2 {
+            font-size: 1.5rem;
+            color: #f4f4f5;
+            margin-bottom: 8px;
+        }
+
+        .assistant-description {
+            color: #71717a;
+            margin-bottom: 20px;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(24, 24, 27, 0.5);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .chat-welcome {
+            text-align: center;
+            padding: 40px 20px;
+            color: #a1a1aa;
+        }
+
+        .welcome-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .chat-welcome h3 {
+            color: #f4f4f5;
+            margin-bottom: 12px;
+        }
+
+        .capability-list {
+            list-style: none;
+            text-align: left;
+            max-width: 400px;
+            margin: 20px auto 0;
+        }
+
+        .capability-list li {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: rgba(39, 39, 42, 0.8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .capability-list li::before {
+            content: "•";
+            color: #6366f1;
+        }
+
+        .chat-message {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.user {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        .message-avatar.assistant {
+            background: rgba(39, 39, 42, 0.8);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+        }
+
+        .chat-message.user .message-content {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.assistant .message-content {
+            background: rgba(39, 39, 42, 0.8);
+            color: #f4f4f5;
+            border-bottom-left-radius: 4px;
+        }
+
+        .server-used {
+            font-size: 0.75rem;
+            color: #a78bfa;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(39, 39, 42, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-input-container input {
+            flex: 1;
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 12px 20px;
+            color: #f4f4f5;
+            font-size: 0.95rem;
+        }
+
+        .chat-input-container input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .send-btn svg {
+            color: white;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .search-options {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .search-input-group {
+                flex-direction: column;
+            }
+
+            .pr-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <h1>Jarvis Agent</h1>
+            </div>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tab active" data-tab="handling-prs">Handling PRs</div>
+            <div class="tab" data-tab="documentation">Documentation</div>
+            <div class="tab" data-tab="configuration">Configuration</div>
+            <div class="tab" data-tab="ai-assistant">AI Assistant</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Handling PRs Tab -->
+            <div class="tab-content active" id="handling-prs">
+                <!-- Search Section -->
+                <div class="search-section">
+                    <h2>Search Pull Request</h2>
+                    <div class="search-row">
+                        <div class="search-field">
+                            <label for="repoSelect">Repository</label>
+                            <select class="search-select" id="repoSelect" onchange="onRepoChange()">
+                                <option value="">Select Repository</option>
+                                <option value="Trimble-Connect/trimble-connect-platform">trimble-connect-platform</option>
+                                <option value="Trimble-Connect/cloud-files-service-utils">cloud-files-service-utils</option>
+                                <option value="Trimble-Connect/trimble-connect-permissions-service">trimble-connect-permissions-service</option>
+                                <option value="Trimble-Connect/trimble-connect-files-service">trimble-connect-files-service</option>
+                                <option value="Trimble-Connect/tc-api-gateway">tc-api-gateway</option>
+                                <option value="Trimble-Connect/tc-auth-service">tc-auth-service</option>
+                                <option value="Trimble-Connect/tc-project-service">tc-project-service</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="search-row">
+                        <div class="search-options">
+                            <div class="search-option">
+                                <input type="radio" id="searchByNumber" name="searchType" value="number" checked onchange="onSearchTypeChange()">
+                                <label for="searchByNumber">Search by PR Number</label>
+                            </div>
+                            <div class="search-option">
+                                <input type="radio" id="searchByOwner" name="searchType" value="owner" onchange="onSearchTypeChange()">
+                                <label for="searchByOwner">Search by PR Owner</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-row">
+                        <div class="search-field" id="prNumberField">
+                            <label for="prNumberSelect">PR Number</label>
+                            <select class="search-select" id="prNumberSelect" disabled>
+                                <option value="">Select repository first</option>
+                            </select>
+                        </div>
+                        <div class="search-field" id="prOwnerField" style="display: none;">
+                            <label for="prOwnerSelect">PR Owner</label>
+                            <select class="search-select" id="prOwnerSelect" disabled>
+                                <option value="">Select repository first</option>
+                            </select>
+                        </div>
+                        <button class="review-initiate-btn" id="initiateReviewBtn" onclick="initiateReview()" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            Initiate PR Review
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PR Info Card (hidden - review flow goes directly to comments) -->
+                <div class="pr-info-card" id="prInfoCard" style="display: none;"></div>
+
+                <!-- Review Comments Section -->
+                <div class="review-section" id="reviewSection">
+                    <div class="review-header">
+                        <h3>🔍 Logic Failure Analysis</h3>
+                        <div class="branch-info" id="branchInfo" style="display: none;">
+                            <span class="branch-badge source" id="sourceBranch"></span>
+                            <span class="branch-arrow">→</span>
+                            <span class="branch-badge dest" id="destBranch"></span>
+                        </div>
+                        <div class="select-all-container">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            <label for="selectAll">Select All</label>
+                        </div>
+                    </div>
+                    
+                    <div class="comments-list" id="commentsList">
+                        <!-- Comments will be populated here -->
+                    </div>
+
+                    <div class="apply-fixes-section">
+                        <div class="selected-count">
+                            <strong id="selectedCount">0</strong> comments selected
+                        </div>
+                        <div class="action-buttons">
+                            <button class="apply-comments-btn" id="applyCommentsBtn" onclick="applyCommentsTopr()" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                Apply Comments to PR
+                            </button>
+                            <button class="apply-fixes-btn" id="applyFixesBtn" onclick="applyFixesToPR()" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                                Apply Fixes to PR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State - Hidden by default -->
+                <div class="empty-state" id="emptyState" style="display: none;"></div>
+
+                <!-- Loading State -->
+                <div class="loading" id="loadingState" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <span id="loadingText">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Documentation Tab -->
+            <div class="tab-content" id="documentation">
+                <div class="docs-section">
+                    <h2>📚 Repository Documentation Generator</h2>
+                    <p class="docs-description">
+                        <strong>Custom MCP Server</strong>: Analyze GitHub repositories and generate architecture/documentation.<br>
+                        <strong>AWS Documentation MCP</strong>: Analyze repos for AWS services and fetch relevant documentation.<br>
+                        <strong>AWS Diagram MCP</strong>: Generate AWS architecture diagrams with professional icons.
+                    </p>
+                    
+                    <div class="docs-form">
+                        <div class="docs-row">
+                            <div class="docs-group">
+                                <label>MCP Server</label>
+                                <select id="docsMcpServer" onchange="onDocServerChange()">
+                                    <option value="">Select MCP Server...</option>
+                                </select>
+                            </div>
+                            <div class="docs-group">
+                                <label>Repository</label>
+                                <select id="docsRepository" disabled>
+                                    <option value="">Select Repository...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="docs-row">
+                            <div class="docs-group full-width">
+                                <label>Repository URL (or enter manually)</label>
+                                <input type="text" id="docsRepoUrl" placeholder="e.g., github.com/owner/repo or local path">
+                            </div>
+                        </div>
+                        
+                        <div class="docs-row">
+                            <div class="docs-group">
+                                <label>Documentation Type</label>
+                                <select id="docsType">
+                                    <option value="readme">README.md</option>
+                                    <option value="api">API Documentation</option>
+                                    <option value="architecture">Architecture Overview</option>
+                                    <option value="code_analysis">Code Logic Analysis</option>
+                                    <option value="setup">Setup Guide</option>
+                                    <option value="full">Full Documentation Suite</option>
+                                </select>
+                            </div>
+                            <div class="docs-group">
+                                <label>Output Format</label>
+                                <select id="docsFormat">
+                                    <option value="markdown">Markdown (.md)</option>
+                                    <option value="html">HTML</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button class="generate-docs-btn" onclick="generateDocumentation()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            Generate Documentation
+                        </button>
+                    </div>
+                    
+                    <!-- Documentation Output -->
+                    <div class="docs-output" id="docsOutput" style="display: none;">
+                        <div class="docs-output-header">
+                            <h3>📄 Generated Documentation</h3>
+                            <div class="docs-actions">
+                                <button class="docs-action-btn" onclick="copyDocumentation()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button class="docs-action-btn" onclick="downloadDocumentation()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                        <div class="docs-content" id="docsContent"></div>
+                    </div>
+                    
+                    <!-- Documentation Progress -->
+                    <div class="docs-progress" id="docsProgress" style="display: none;">
+                        <div class="progress-spinner"></div>
+                        <span id="docsProgressText">Analyzing repository...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Tab -->
+            <div class="tab-content" id="configuration">
+                <div class="config-section">
+                    <h2>🔧 MCP Server Configuration</h2>
+                    <p class="config-description">Configure multiple MCP servers. The AI will automatically select the appropriate server based on your request.</p>
+                    
+                    <div class="server-list" id="serverList">
+                        <!-- Servers will be populated here -->
+                    </div>
+                    
+                    <div class="reset-section" style="margin-bottom: 20px; text-align: right;">
+                        <button class="reset-btn" onclick="resetToDefaults()">
+                            🔄 Reset to Defaults
+                        </button>
+                    </div>
+
+                    <div class="add-server-form">
+                        <h3>Add New MCP Server</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Server Name</label>
+                                <input type="text" id="newServerName" placeholder="e.g., AWS Documentation">
+                            </div>
+                            <div class="form-group">
+                                <label>Server URL</label>
+                                <input type="text" id="newServerUrl" placeholder="e.g., http://localhost:8000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Description</label>
+                                <input type="text" id="newServerDesc" placeholder="e.g., AWS services documentation and tools">
+                            </div>
+                            <div class="form-group">
+                                <label>Keywords (comma-separated)</label>
+                                <input type="text" id="newServerKeywords" placeholder="e.g., aws, s3, lambda, ec2, cloud">
+                            </div>
+                        </div>
+                        <button class="add-server-btn" onclick="addMcpServer()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add Server
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Assistant Tab -->
+            <div class="tab-content" id="ai-assistant">
+                <div class="assistant-section">
+                    <h2>🤖 AI Assistant</h2>
+                    <p class="assistant-description">Ask anything! The AI will automatically connect to the appropriate MCP server based on your query.</p>
+                    
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-welcome">
+                                <div class="welcome-icon">👋</div>
+                                <h3>Welcome to Jarvis Agent</h3>
+                                <p>I can help you with various tasks by connecting to different MCP servers:</p>
+                                <ul class="capability-list" id="capabilityList">
+                                    <!-- Capabilities populated from configured servers -->
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <input type="text" id="userPrompt" placeholder="Ask me anything..." onkeypress="handlePromptKeypress(event)">
+                            <button class="send-btn" onclick="sendPrompt()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // State
+        let currentPR = null;
+        let reviewComments = [];
+        let selectedComments = new Set();
+
+        // DOM Elements
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const repoSelect = document.getElementById('repoSelect');
+        const prNumberSelect = document.getElementById('prNumberSelect');
+        const prOwnerSelect = document.getElementById('prOwnerSelect');
+        const prNumberField = document.getElementById('prNumberField');
+        const prOwnerField = document.getElementById('prOwnerField');
+        const initiateReviewBtn = document.getElementById('initiateReviewBtn');
+        const prInfoCard = document.getElementById('prInfoCard');
+        const reviewSection = document.getElementById('reviewSection');
+        const commentsList = document.getElementById('commentsList');
+        const emptyState = document.getElementById('emptyState');
+        const loadingState = document.getElementById('loadingState');
+        const loadingText = document.getElementById('loadingText');
+        const applyFixesBtn = document.getElementById('applyFixesBtn');
+        const selectedCountEl = document.getElementById('selectedCount');
+        
+        // Cache for open PRs
+        let openPRsCache = [];
+        
+        // Enable/disable review button based on selection
+        prNumberSelect.addEventListener('change', updateReviewButton);
+        prOwnerSelect.addEventListener('change', updateReviewButton);
+        
+        function updateReviewButton() {
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            const hasSelection = searchType === 'number' 
+                ? prNumberSelect.value 
+                : prOwnerSelect.value;
+            initiateReviewBtn.disabled = !hasSelection;
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Repository change handler
+        async function onRepoChange() {
+            const repo = repoSelect.value;
+            
+            // Reset dropdowns
+            prNumberSelect.innerHTML = '<option value="">Loading PRs...</option>';
+            prOwnerSelect.innerHTML = '<option value="">Loading owners...</option>';
+            prNumberSelect.disabled = true;
+            prOwnerSelect.disabled = true;
+            
+            if (!repo) {
+                prNumberSelect.innerHTML = '<option value="">Select repository first</option>';
+                prOwnerSelect.innerHTML = '<option value="">Select repository first</option>';
+                return;
+            }
+            
+            try {
+                // Fetch open PRs for the selected repo
+                const response = await fetch('/api/pr/open-prs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                openPRsCache = data.prs || [];
+                
+                // Populate PR number dropdown
+                if (openPRsCache.length === 0) {
+                    prNumberSelect.innerHTML = '<option value="">No open PRs found</option>';
+                    prOwnerSelect.innerHTML = '<option value="">No open PRs found</option>';
+                } else {
+                    // PR Numbers
+                    prNumberSelect.innerHTML = '<option value="">Select PR</option>';
+                    openPRsCache.forEach(pr => {
+                        const option = document.createElement('option');
+                        option.value = pr.number;
+                        option.textContent = `#${pr.number} - ${pr.title.substring(0, 50)}${pr.title.length > 50 ? '...' : ''}`;
+                        prNumberSelect.appendChild(option);
+                    });
+                    prNumberSelect.disabled = false;
+                    
+                    // PR Owners (unique)
+                    const owners = [...new Set(openPRsCache.map(pr => pr.author))];
+                    prOwnerSelect.innerHTML = '<option value="">Select Owner</option>';
+                    owners.forEach(owner => {
+                        const option = document.createElement('option');
+                        option.value = owner;
+                        option.textContent = owner;
+                        prOwnerSelect.appendChild(option);
+                    });
+                    prOwnerSelect.disabled = false;
+                }
+                
+                showToast(`Found ${openPRsCache.length} open PRs`, 'success');
+                
+            } catch (error) {
+                prNumberSelect.innerHTML = '<option value="">Failed to load PRs</option>';
+                prOwnerSelect.innerHTML = '<option value="">Failed to load PRs</option>';
+                showToast(error.message || 'Failed to fetch PRs', 'error');
+            }
+        }
+
+        // Search type change handler
+        function onSearchTypeChange() {
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            
+            if (searchType === 'number') {
+                prNumberField.style.display = 'flex';
+                prOwnerField.style.display = 'none';
+            } else {
+                prNumberField.style.display = 'none';
+                prOwnerField.style.display = 'flex';
+            }
+            
+            // Update button state
+            updateReviewButton();
+        }
+
+        // Check server health
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.mcp_server.connected) {
+                    statusDot.classList.add('connected');
+                    statusDot.classList.remove('disconnected');
+                    statusText.textContent = 'Connected to MCP Server';
+                } else {
+                    statusDot.classList.remove('connected');
+                    statusDot.classList.add('disconnected');
+                    statusText.textContent = 'MCP Server Disconnected';
+                }
+            } catch (error) {
+                statusDot.classList.remove('connected');
+                statusDot.classList.add('disconnected');
+                statusText.textContent = 'Connection Error';
+            }
+        }
+
+        // Initiate PR Review - directly starts the review process
+        async function initiateReview() {
+            const repo = repoSelect.value;
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            
+            if (!repo) {
+                showToast('Please select a repository', 'error');
+                return;
+            }
+            
+            let prNumber;
+            let prTitle = '';
+            
+            if (searchType === 'number') {
+                prNumber = prNumberSelect.value;
+                if (!prNumber) {
+                    showToast('Please select a PR number', 'error');
+                    return;
+                }
+                // Get title from selected option
+                const selectedOption = prNumberSelect.options[prNumberSelect.selectedIndex];
+                prTitle = selectedOption.text;
+            } else {
+                const ownerName = prOwnerSelect.value;
+                if (!ownerName) {
+                    showToast('Please select a PR owner', 'error');
+                    return;
+                }
+                // Get PRs by this owner
+                const ownerPRs = openPRsCache.filter(pr => pr.author === ownerName);
+                if (ownerPRs.length === 0) {
+                    showToast('No PRs found for this owner', 'error');
+                    return;
+                }
+                if (ownerPRs.length > 1) {
+                    // Show selection dialog for multiple PRs
+                    displayOwnerPRsForReview(ownerPRs, repo);
+                    return;
+                }
+                prNumber = ownerPRs[0].number;
+                prTitle = ownerPRs[0].title;
+            }
+            
+            // Set current PR
+            currentPR = {
+                number: prNumber,
+                title: prTitle,
+                repo: repo
+            };
+            
+            // Start the review directly
+            await startPRReview(prNumber, repo);
+        }
+        
+        // Display PRs by owner for selection before review
+        function displayOwnerPRsForReview(prs, repo) {
+            hideElement(emptyState);
+            hideElement(prInfoCard);
+            
+            const html = `
+                <div style="margin-bottom: 16px; color: #a1a1aa;">
+                    Select a PR by <strong>${prs[0].author}</strong> to review:
+                </div>
+            ` + prs.map(pr => `
+                <div class="comment-item" style="cursor: pointer;" onclick="startPRReviewFromList(${pr.number}, '${repo}', '${pr.title.replace(/'/g, "\\'")}')">
+                    <div class="comment-content">
+                        <div class="comment-file">#${pr.number}</div>
+                        <div class="comment-text">${pr.title}</div>
+                        <span class="comment-type suggestion">${pr.branch || 'branch'}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            commentsList.innerHTML = html;
+            showElement(reviewSection);
+            document.querySelector('.review-header h3').textContent = `Select PR to Review (${prs.length} PRs)`;
+            document.querySelector('.select-all-container').style.display = 'none';
+            document.querySelector('.apply-fixes-section').style.display = 'none';
+        }
+        
+        // Start review from owner's PR list
+        async function startPRReviewFromList(prNumber, repo, title) {
+            currentPR = {
+                number: prNumber,
+                title: title,
+                repo: repo
+            };
+            await startPRReview(prNumber, repo);
+        }
+        
+        // Start the actual PR review process
+        async function startPRReview(prNumber, repo) {
+            showLoading('Analyzing PR and generating review comments...');
+            hideElement(emptyState);
+            hideElement(prInfoCard);
+            
+            // Reset review section UI
+            document.querySelector('.review-header h3').textContent = '🔍 Logic Failure Analysis';
+            document.getElementById('branchInfo').style.display = 'none';
+            document.querySelector('.select-all-container').style.display = 'flex';
+            document.querySelector('.apply-fixes-section').style.display = 'flex';
+
+            try {
+                const response = await fetch('/api/pr/review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        pr_id: prNumber.toString(),
+                        repo: repo
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                reviewComments = data.comments || [];
+                const summary = data.summary || {};
+                const prTitle = data.pr_title || '';
+                
+                // Update title based on PR type
+                const prType = data.pr_type || 'code';
+                if (prType === 'documentation') {
+                    document.querySelector('.review-header h3').textContent = '📄 Documentation Analysis';
+                } else {
+                    document.querySelector('.review-header h3').textContent = '🔍 Logic Failure Analysis';
+                }
+                
+                displayReviewComments(reviewComments, prType, summary, prTitle, prNumber);
+                
+                if (reviewComments.length > 0) {
+                    const msgType = prType === 'documentation' ? 'documentation comments' : 'review comments';
+                    showToast(`Found ${reviewComments.length} ${msgType} for PR #${prNumber}`, 'success');
+                } else {
+                    const msgType = prType === 'documentation' ? 'documentation issues' : 'issues';
+                    showToast(`No ${msgType} found in PR #${prNumber}`, 'success');
+                }
+            } catch (error) {
+                showToast(error.message || 'Failed to generate review', 'error');
+                showElement(emptyState);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display review comments
+        function displayReviewComments(comments, prType = 'code', summary = {}, prTitle = '', prNumber = '') {
+            commentsList.innerHTML = '';
+            selectedComments.clear();
+            updateSelectedCount();
+
+            if (comments.length === 0) {
+                let emptyStateContent;
+                
+                if (prType === 'documentation') {
+                    emptyStateContent = `<div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <h3>Documentation Looks Good</h3>
+                        <p>Documentation analyzed for format issues, diagrams, and architecture updates.<br>No issues detected in the documentation changes.</p>
+                    </div>`;
+                } else {
+                    // Build detailed summary for code analysis
+                    const branchInfo = summary.source_branch && summary.destination_branch 
+                        ? `<strong>${summary.source_branch}</strong> → <strong>${summary.destination_branch}</strong>`
+                        : 'source → destination';
+                    
+                    const filesCount = summary.files_analyzed || summary.files?.length || 0;
+                    
+                    // Build detailed file changes list with change descriptions
+                    const fileChanges = summary.file_changes || [];
+                    let fileChangesHtml = '';
+                    
+                    if (fileChanges.length > 0) {
+                        fileChangesHtml = fileChanges.slice(0, 8).map(fc => {
+                            const statusIcon = fc.status === 'added' ? '🆕' : 
+                                              fc.status === 'removed' ? '🗑️' : 
+                                              fc.status === 'renamed' ? '📝' : '✏️';
+                            const statsText = fc.additions || fc.deletions ? 
+                                `<span class="file-stats">+${fc.additions || 0}/-${fc.deletions || 0}</span>` : '';
+                            
+                            const changesText = fc.changes && fc.changes.length > 0 
+                                ? fc.changes.map(c => `<span class="change-item">• ${c}</span>`).join('')
+                                : '<span class="change-item">• Minor modifications</span>';
+                            
+                            return `
+                                <div class="file-change-item">
+                                    <div class="file-change-header">
+                                        <span class="file-status-icon">${statusIcon}</span>
+                                        <code class="file-name">${fc.filename}</code>
+                                        ${statsText}
+                                    </div>
+                                    <div class="file-change-details">
+                                        ${changesText}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        if (fileChanges.length > 8) {
+                            fileChangesHtml += `<div class="more-files">... and ${fileChanges.length - 8} more file(s)</div>`;
+                        }
+                    } else if (summary.files && summary.files.length > 0) {
+                        // Fallback to simple file list if no detailed changes
+                        fileChangesHtml = summary.files.slice(0, 5).map(f => 
+                            `<div class="file-change-item simple"><code class="file-name">${f}</code></div>`
+                        ).join('');
+                    }
+                    
+                    const checksPerformed = summary.checks_performed || [
+                        "Null pointer / undefined checks",
+                        "Error handling validation",
+                        "Resource management",
+                        "Business logic validation",
+                        "Security patterns"
+                    ];
+                    
+                    emptyStateContent = `<div class="empty-state detailed-summary">
+                        <div class="empty-state-icon">✅</div>
+                        <h3>No Logic Failures Found</h3>
+                        
+                        <div class="summary-section">
+                            <h4>PR Details</h4>
+                            <div class="summary-item">
+                                <span class="summary-label">PR #${prNumber}:</span>
+                                <span class="summary-value">${prTitle || 'No title available'}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Branch Flow:</span>
+                                <span class="summary-value">${branchInfo}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Files Analyzed:</span>
+                                <span class="summary-value">${filesCount} file(s)</span>
+                            </div>
+                        </div>
+                        
+                        ${fileChangesHtml ? `
+                        <div class="summary-section files-section">
+                            <h4>Files Changed & Logic Analysis</h4>
+                            <div class="file-changes-list">${fileChangesHtml}</div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="summary-section">
+                            <h4>Checks Performed</h4>
+                            <ul class="checks-list">
+                                ${checksPerformed.map(check => `<li>✓ ${check}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="summary-section why-no-issues">
+                            <h4>Why No Issues?</h4>
+                            <p>The code changes passed all automated logic checks. This means:</p>
+                            <ul>
+                                <li>No obvious null pointer or undefined variable risks detected</li>
+                                <li>Error handling appears adequate for the changes</li>
+                                <li>No resource leaks or concurrency issues identified</li>
+                                <li>Business logic changes follow expected patterns</li>
+                                <li>No security vulnerabilities detected in the diff</li>
+                            </ul>
+                        </div>
+                    </div>`;
+                }
+                
+                commentsList.innerHTML = emptyStateContent;
+                
+                // Store summary for posting to PR
+                window.currentReviewSummary = {
+                    prNumber: prNumber,
+                    prTitle: prTitle,
+                    summary: summary,
+                    noIssuesFound: true
+                };
+                
+                // Hide select all (no comments to select) but show apply button section
+                document.querySelector('.select-all-container').style.display = 'none';
+                document.querySelector('.apply-fixes-section').style.display = 'flex';
+                
+                // Update button text and enable it for posting approval
+                const applyCommentsBtn = document.getElementById('applyCommentsBtn');
+                applyCommentsBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Post Approval to PR
+                `;
+                applyCommentsBtn.disabled = false;
+                applyCommentsBtn.classList.add('approval-mode');
+                
+                // Hide the "Apply Fixes" button since there's nothing to fix
+                document.getElementById('applyFixesBtn').style.display = 'none';
+                
+                // Update selected count text
+                document.getElementById('selectedCount').parentElement.innerHTML = '<span class="approval-badge">✅ Ready to approve</span>';
+                
+                showElement(reviewSection);
+                return;
+            }
+
+            comments.forEach((comment, index) => {
+                const commentEl = document.createElement('div');
+                commentEl.className = 'comment-item';
+                commentEl.dataset.index = index;
+                
+                const typeClass = comment.type || 'suggestion';
+                const category = comment.category || (comment.file ? 'File Change' : 'General');
+                const severity = comment.severity || 'minor';
+                
+                // Type emoji mapping
+                const typeEmoji = {
+                    'error': '❌',
+                    'warning': '⚠️',
+                    'suggestion': '💡',
+                    'checklist': '☑️',
+                    'file_review': '📁'
+                };
+                
+                // Severity colors
+                const severityClass = {
+                    'blocking': 'severity-blocking',
+                    'major': 'severity-major',
+                    'minor': 'severity-minor'
+                };
+                
+                const emoji = typeEmoji[typeClass] || '📝';
+                const sevClass = severityClass[severity] || 'severity-minor';
+                
+                // Build file and line info
+                let fileInfo = '';
+                if (comment.file) {
+                    fileInfo = `<span class="comment-file-badge">${comment.file}</span>`;
+                    if (comment.line) {
+                        fileInfo += `<span class="comment-line-badge">Line ${comment.line}</span>`;
+                    }
+                }
+                
+                commentEl.innerHTML = `
+                    <input type="checkbox" class="comment-checkbox" 
+                           onchange="toggleComment(${index})" id="comment-${index}">
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-category">${emoji} ${category}</span>
+                            ${fileInfo}
+                            <span class="comment-severity ${sevClass}">${severity.toUpperCase()}</span>
+                        </div>
+                        <div class="comment-text">${comment.text}</div>
+                        <span class="comment-type ${typeClass}">${typeClass.toUpperCase()}</span>
+                    </div>
+                `;
+                
+                commentsList.appendChild(commentEl);
+            });
+
+            // Reset button state when there are issues
+            window.currentReviewSummary = null;
+            const applyCommentsBtn = document.getElementById('applyCommentsBtn');
+            applyCommentsBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Apply Comments to PR
+            `;
+            applyCommentsBtn.classList.remove('approval-mode');
+            applyCommentsBtn.disabled = true;
+            
+            // Show the "Apply Fixes" button
+            document.getElementById('applyFixesBtn').style.display = '';
+            
+            // Reset selected count
+            document.getElementById('selectedCount').parentElement.innerHTML = '<strong id="selectedCount">0</strong> comments selected';
+
+            showElement(reviewSection);
+        }
+
+        // Toggle comment selection
+        function toggleComment(index) {
+            const checkbox = document.getElementById(`comment-${index}`);
+            const commentEl = checkbox.closest('.comment-item');
+            
+            if (checkbox.checked) {
+                selectedComments.add(index);
+                commentEl.classList.add('selected');
+            } else {
+                selectedComments.delete(index);
+                commentEl.classList.remove('selected');
+            }
+            
+            updateSelectedCount();
+            updateSelectAllCheckbox();
+        }
+
+        // Toggle select all
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.comment-checkbox');
+            
+            checkboxes.forEach((checkbox, index) => {
+                checkbox.checked = selectAll.checked;
+                const commentEl = checkbox.closest('.comment-item');
+                
+                if (selectAll.checked) {
+                    selectedComments.add(index);
+                    commentEl.classList.add('selected');
+                } else {
+                    selectedComments.delete(index);
+                    commentEl.classList.remove('selected');
+                }
+            });
+            
+            updateSelectedCount();
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.comment-checkbox');
+            
+            if (checkboxes.length === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else if (selectedComments.size === checkboxes.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else if (selectedComments.size > 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+        }
+
+        // Update selected count
+        function updateSelectedCount() {
+            selectedCountEl.textContent = selectedComments.size;
+            const hasSelection = selectedComments.size > 0;
+            const applyBtn = document.getElementById('applyCommentsBtn');
+            
+            // Apply Comments button is always enabled when we have a PR
+            applyBtn.disabled = !currentPR;
+            
+            // Apply Fixes button requires selection
+            document.getElementById('applyFixesBtn').disabled = !hasSelection;
+        }
+
+        // Apply comments to PR (post review comments to GitHub)
+        async function applyCommentsTopr() {
+            if (!currentPR) return;
+
+            const selectedIssues = Array.from(selectedComments).map(i => reviewComments[i]);
+            const reviewSummary = window.currentReviewSummary;
+            const isApproval = reviewSummary?.noIssuesFound || selectedComments.size === 0;
+            
+            // Show confirmation popup if no comments selected (and not in approval mode from no issues)
+            if (isApproval && !reviewSummary?.noIssuesFound) {
+                const confirmed = confirm(
+                    "No comments selected.\n\n" +
+                    "Do you want to post an approval comment indicating no major issues were found?\n\n" +
+                    "Click OK to approve, or Cancel to go back."
+                );
+                if (!confirmed) {
+                    return;
+                }
+            }
+            
+            // Determine if this is a documentation PR based on current review header
+            const reviewHeader = document.querySelector('.review-header h3');
+            const isDocPR = reviewHeader && reviewHeader.textContent.includes('Documentation');
+            
+            document.getElementById('applyCommentsBtn').disabled = true;
+            showLoading(isApproval ? 'Posting approval summary to PR...' : 'Posting review comments to PR...');
+
+            try {
+                // Build request body with summary if available
+                const requestBody = {
+                    pr_id: currentPR.number.toString(),
+                    repo: currentPR.repo,
+                    comments: selectedIssues,
+                    is_approval: isApproval,
+                    is_documentation_pr: isDocPR
+                };
+                
+                // Include review summary for approval posts
+                if (reviewSummary?.noIssuesFound && reviewSummary.summary) {
+                    requestBody.review_summary = {
+                        pr_title: reviewSummary.prTitle,
+                        source_branch: reviewSummary.summary.source_branch,
+                        destination_branch: reviewSummary.summary.destination_branch,
+                        files_analyzed: reviewSummary.summary.files_analyzed,
+                        files: reviewSummary.summary.files,
+                        file_changes: reviewSummary.summary.file_changes,
+                        checks_performed: reviewSummary.summary.checks_performed
+                    };
+                }
+                
+                const response = await fetch('/api/pr/apply-comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (isApproval) {
+                    showToast(`Approval comment posted to PR #${currentPR.number}`, 'success');
+                } else {
+                    showToast(`Successfully posted ${selectedComments.size} comments to PR #${currentPR.number}`, 'success');
+                }
+                
+            } catch (error) {
+                showToast(error.message || 'Failed to post comments', 'error');
+            } finally {
+                document.getElementById('applyCommentsBtn').disabled = false;
+                hideLoading();
+            }
+        }
+
+        // Apply fixes to PR (fix the code for selected issues)
+        async function applyFixesToPR() {
+            if (selectedComments.size === 0 || !currentPR) return;
+
+            const selectedIssues = Array.from(selectedComments).map(i => reviewComments[i]);
+            
+            document.getElementById('applyFixesBtn').disabled = true;
+            showLoading('Applying code fixes to PR...');
+
+            try {
+                const response = await fetch('/api/pr/apply-fixes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pr_id: currentPR.number.toString(),
+                        repo: currentPR.repo,
+                        issues: selectedIssues
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                showToast(`Successfully applied ${selectedComments.size} fixes to PR #${currentPR.number}`, 'success');
+                
+                // Clear selections after successful fix
+                selectedComments.clear();
+                document.querySelectorAll('.comment-checkbox').forEach(cb => {
+                    cb.checked = false;
+                    cb.closest('.comment-item').classList.remove('selected');
+                });
+                updateSelectedCount();
+                updateSelectAllCheckbox();
+                
+            } catch (error) {
+                showToast(error.message || 'Failed to apply fixes', 'error');
+            } finally {
+                document.getElementById('applyFixesBtn').disabled = selectedComments.size === 0;
+                hideLoading();
+            }
+        }
+
+        // UI Helpers
+        function showElement(el) {
+            el.classList.add('visible');
+            el.style.display = '';
+        }
+
+        function hideElement(el) {
+            el.classList.remove('visible');
+            el.style.display = 'none';
+        }
+
+        function showLoading(text) {
+            loadingText.textContent = text;
+            loadingState.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingState.style.display = 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ========================================
+        // MCP Server Configuration Management
+        // ========================================
+        
+        // Default MCP servers
+        let mcpServers = [
+            {
+                id: 'custom-mcp',
+                name: 'Custom MCP Server',
+                url: 'http://localhost:8000',
+                description: 'Custom MCP server with multiple tools',
+                keywords: ['custom', 'tools', 'mcp'],
+                tools: [], // Will be populated when connected
+                source: '',
+                type: 'custom',
+                connected: false
+            },
+            {
+                id: 'aws-docs',
+                name: 'AWS Documentation MCP',
+                url: 'github.com/awslabs/mcp/tree/main/src/aws-documentation-mcp-server',
+                description: 'AWS services documentation, best practices, and service guides from AWS Labs',
+                keywords: ['aws', 's3', 'lambda', 'ec2', 'dynamodb', 'cloud', 'amazon', 'iam', 'vpc', 'cloudformation', 'sqs', 'sns', 'rds', 'ecs', 'eks', 'documentation'],
+                tools: ['search_documentation', 'recommend', 'read_documentation'],
+                source: 'github.com/awslabs/mcp/tree/main/src/aws-documentation-mcp-server',
+                docs: 'awslabs.github.io/mcp/servers/aws-documentation-mcp-server',
+                type: 'documentation',
+                connected: false
+            },
+            {
+                id: 'aws-diagram',
+                name: 'AWS Diagram MCP',
+                url: 'github.com/awslabs/mcp/tree/main/src/aws-diagram-mcp-server',
+                description: 'Generate AWS architecture diagrams using Python diagrams package. Supports AWS, sequence, flow, and class diagrams.',
+                keywords: ['aws', 'diagram', 'architecture', 'visualization', 'lambda', 's3', 'ec2', 'infrastructure', 'draw', 'chart'],
+                tools: ['generate_diagram', 'list_icons', 'get_diagram_examples'],
+                source: 'github.com/awslabs/mcp/tree/main/src/aws-diagram-mcp-server',
+                docs: 'awslabs.github.io/mcp/servers/aws-diagram-mcp-server',
+                type: 'diagram',
+                connected: false
+            }
+        ];
+        
+        // Default servers definition (for reset)
+        const defaultServers = [
+            {
+                id: 'custom-mcp',
+                name: 'Custom MCP Server',
+                url: 'http://localhost:8000',
+                description: 'Custom MCP server with multiple tools',
+                keywords: ['custom', 'tools', 'mcp'],
+                tools: [], // Will be populated when connected
+                source: '',
+                type: 'custom',
+                connected: false
+            },
+            {
+                id: 'aws-docs',
+                name: 'AWS Documentation MCP',
+                url: 'github.com/awslabs/mcp/tree/main/src/aws-documentation-mcp-server',
+                description: 'AWS services documentation, best practices, and service guides from AWS Labs',
+                keywords: ['aws', 's3', 'lambda', 'ec2', 'dynamodb', 'cloud', 'amazon', 'iam', 'vpc', 'cloudformation', 'sqs', 'sns', 'rds', 'ecs', 'eks', 'documentation'],
+                tools: ['search_documentation', 'recommend', 'read_documentation'],
+                source: 'github.com/awslabs/mcp/tree/main/src/aws-documentation-mcp-server',
+                docs: 'awslabs.github.io/mcp/servers/aws-documentation-mcp-server',
+                type: 'documentation',
+                connected: false
+            },
+            {
+                id: 'aws-diagram',
+                name: 'AWS Diagram MCP',
+                url: 'github.com/awslabs/mcp/tree/main/src/aws-diagram-mcp-server',
+                description: 'Generate AWS architecture diagrams using Python diagrams package. Supports AWS, sequence, flow, and class diagrams.',
+                keywords: ['aws', 'diagram', 'architecture', 'visualization', 'lambda', 's3', 'ec2', 'infrastructure', 'draw', 'chart'],
+                tools: ['generate_diagram', 'list_icons', 'get_diagram_examples'],
+                source: 'github.com/awslabs/mcp/tree/main/src/aws-diagram-mcp-server',
+                docs: 'awslabs.github.io/mcp/servers/aws-diagram-mcp-server',
+                type: 'diagram',
+                connected: false
+            }
+        ];
+
+        // Load servers from localStorage
+        function loadServers() {
+            const saved = localStorage.getItem('mcpServers');
+            if (saved) {
+                mcpServers = JSON.parse(saved);
+                
+                // Merge any missing default servers (e.g., newly added aws-diagram)
+                const existingIds = mcpServers.map(s => s.id);
+                for (const defaultServer of defaultServers) {
+                    if (!existingIds.includes(defaultServer.id)) {
+                        console.log(`[MCP] Adding missing server: ${defaultServer.id}`);
+                        mcpServers.push(defaultServer);
+                    }
+                }
+                saveServers(); // Save the merged list
+            }
+            renderServers();
+            renderCapabilities();
+            populateDocsServers();
+        }
+
+        // Reset to default servers
+        function resetToDefaults() {
+            if (confirm('Reset all MCP servers to defaults? This will remove any custom servers you added.')) {
+                mcpServers = JSON.parse(JSON.stringify(defaultServers));
+                localStorage.removeItem('mcpServers');
+                saveServers();
+                renderServers();
+                renderCapabilities();
+                populateDocsServers();
+                showToast('MCP servers reset to defaults', 'success');
+            }
+        }
+        
+        // Save servers to localStorage
+        function saveServers() {
+            localStorage.setItem('mcpServers', JSON.stringify(mcpServers));
+        }
+        
+        // Render server list
+        function renderServers() {
+            const serverList = document.getElementById('serverList');
+            if (!serverList) return;
+            
+            serverList.innerHTML = mcpServers.map(server => {
+                // Show tools for custom servers, keywords for others
+                const toolsHtml = server.tools && server.tools.length > 0 
+                    ? `<div class="server-tools">
+                        <span class="tools-label">🔧 Tools (${server.tools.length}):</span>
+                        <div class="tools-list">
+                            ${server.tools.slice(0, 10).map(t => `<span class="tool-tag">${t}</span>`).join('')}
+                            ${server.tools.length > 10 ? `<span class="tool-tag more">+${server.tools.length - 10} more</span>` : ''}
+                        </div>
+                       </div>`
+                    : (server.type === 'custom' ? '<div class="server-tools"><span class="tools-label">🔧 Tools:</span> <em style="color:#71717a">Click "Test" to discover tools</em></div>' : '');
+                
+                const keywordsHtml = server.keywords && server.keywords.length > 0 && server.type !== 'custom'
+                    ? `<div class="server-keywords">${server.keywords.map(k => `<span class="keyword-tag">${k}</span>`).join('')}</div>`
+                    : '';
+                
+                return `
+                <div class="server-card" data-id="${server.id}">
+                    <div class="server-status ${server.connected ? 'connected' : 'disconnected'}"></div>
+                    <div class="server-info">
+                        <div class="server-name">${server.name}</div>
+                        <div class="server-url">${server.url}</div>
+                        <div class="server-desc">${server.description}</div>
+                        ${server.source ? `<div class="server-source"><a href="https://${server.source}" target="_blank">📦 ${server.source}</a></div>` : ''}
+                        ${server.docs ? `<div class="server-docs"><a href="https://${server.docs}" target="_blank">📖 Documentation</a></div>` : ''}
+                        ${toolsHtml}
+                        ${keywordsHtml}
+                    </div>
+                    <div class="server-actions">
+                        <button class="server-btn" onclick="testServer('${server.id}')">Test</button>
+                        <button class="server-btn delete" onclick="removeServer('${server.id}')">Remove</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        // Render capabilities in AI Assistant
+        function renderCapabilities() {
+            const capList = document.getElementById('capabilityList');
+            if (!capList) return;
+            
+            capList.innerHTML = mcpServers.map(server => `
+                <li><strong>${server.name}</strong> - ${server.description}</li>
+            `).join('');
+        }
+        
+        // Add new MCP server
+        function addMcpServer() {
+            const name = document.getElementById('newServerName').value.trim();
+            const url = document.getElementById('newServerUrl').value.trim();
+            const desc = document.getElementById('newServerDesc').value.trim();
+            const keywords = document.getElementById('newServerKeywords').value.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+            
+            if (!name || !url) {
+                showToast('Please enter server name and URL', 'error');
+                return;
+            }
+            
+            const newServer = {
+                id: 'server_' + Date.now(),
+                name: name,
+                url: url,
+                description: desc || 'Custom MCP server',
+                keywords: keywords.length > 0 ? keywords : [name.toLowerCase()],
+                connected: false
+            };
+            
+            mcpServers.push(newServer);
+            saveServers();
+            renderServers();
+            renderCapabilities();
+            
+            // Clear form
+            document.getElementById('newServerName').value = '';
+            document.getElementById('newServerUrl').value = '';
+            document.getElementById('newServerDesc').value = '';
+            document.getElementById('newServerKeywords').value = '';
+            
+            showToast(`Server "${name}" added successfully`, 'success');
+        }
+        
+        // Remove MCP server
+        function removeServer(id) {
+            mcpServers = mcpServers.filter(s => s.id !== id);
+            saveServers();
+            renderServers();
+            renderCapabilities();
+            showToast('Server removed', 'success');
+        }
+        
+        // Test MCP server connection and fetch tools
+        async function testServer(id) {
+            const server = mcpServers.find(s => s.id === id);
+            if (!server) return;
+            
+            showToast(`Testing connection to ${server.name}...`, 'info');
+            
+            try {
+                // For custom MCP server, test via our local API
+                if (server.type === 'custom' && server.url.includes('localhost')) {
+                    const response = await fetch('/api/tools');
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        server.connected = true;
+                        server.tools = data.tools ? data.tools.map(t => t.name) : [];
+                        server.description = `Custom MCP server with ${server.tools.length} tools available`;
+                        saveServers();
+                        renderServers();
+                        showToast(`${server.name} connected! Found ${server.tools.length} tools.`, 'success');
+                    } else {
+                        server.connected = false;
+                        saveServers();
+                        renderServers();
+                        showToast(`${server.name} connection failed`, 'error');
+                    }
+                } 
+                // For AWS Documentation MCP - use external MCP API
+                else if (server.id === 'aws-docs' || server.type === 'documentation') {
+                    showToast(`Starting ${server.name}... This may take a moment.`, 'info');
+                    
+                    const response = await fetch('/api/external-mcp/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ server_id: 'aws-docs' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.connected) {
+                        server.connected = true;
+                        server.tools = data.tools ? data.tools.map(t => t.name) : [];
+                        server.description = `AWS Documentation MCP with ${server.tools.length} tools: ${server.tools.join(', ')}`;
+                        saveServers();
+                        renderServers();
+                        showToast(`${server.name} connected! Found ${server.tools.length} tools.`, 'success');
+                    } else {
+                        server.connected = false;
+                        saveServers();
+                        renderServers();
+                        const errorMsg = data.error || 'Failed to connect';
+                        showToast(`${server.name}: ${errorMsg}`, 'error');
+                    }
+                }
+                // For AWS Diagram MCP - use external MCP API
+                else if (server.id === 'aws-diagram' || server.type === 'diagram') {
+                    showToast(`Starting ${server.name}... This may take a moment.`, 'info');
+                    
+                    const response = await fetch('/api/external-mcp/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ server_id: 'aws-diagram' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.connected) {
+                        server.connected = true;
+                        server.tools = data.tools ? data.tools.map(t => t.name) : [];
+                        server.description = `AWS Diagram MCP with ${server.tools.length} tools: ${server.tools.join(', ')}`;
+                        saveServers();
+                        renderServers();
+                        showToast(`${server.name} connected! Found ${server.tools.length} tools.`, 'success');
+                    } else {
+                        server.connected = false;
+                        saveServers();
+                        renderServers();
+                        const errorMsg = data.error || 'Failed to connect';
+                        showToast(`${server.name}: ${errorMsg}`, 'error');
+                    }
+                }
+                else {
+                    // For other external servers
+                    server.connected = false;
+                    saveServers();
+                    renderServers();
+                    showToast(`${server.name}: External server integration not yet implemented`, 'info');
+                }
+            } catch (e) {
+                server.connected = false;
+                saveServers();
+                renderServers();
+                showToast(`${server.name} error: ${e.message}`, 'error');
+            }
+        }
+        
+        // ========================================
+        // AI Assistant - Smart Server Selection
+        // ========================================
+        
+        // Select best MCP server based on prompt
+        function selectServerForPrompt(prompt) {
+            const promptLower = prompt.toLowerCase();
+            let bestMatch = mcpServers[0]; // Default to first server
+            let bestScore = 0;
+            
+            for (const server of mcpServers) {
+                let score = 0;
+                for (const keyword of server.keywords) {
+                    if (promptLower.includes(keyword)) {
+                        score += keyword.length; // Longer matches score higher
+                    }
+                }
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = server;
+                }
+            }
+            
+            return bestMatch;
+        }
+        
+        // Send prompt to AI Assistant
+        async function sendPrompt() {
+            const promptInput = document.getElementById('userPrompt');
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) return;
+            
+            // Add user message to chat
+            addChatMessage(prompt, 'user');
+            promptInput.value = '';
+            
+            // Select appropriate server
+            const server = selectServerForPrompt(prompt);
+            
+            // Add thinking indicator
+            const thinkingId = addChatMessage('Thinking...', 'assistant', null, true);
+            
+            try {
+                // Call the server's tool based on the prompt
+                const response = await fetch('/api/assistant/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        server_id: server.id,
+                        server_url: server.url
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove thinking indicator
+                removeChatMessage(thinkingId);
+                
+                // Add assistant response
+                if (data.error) {
+                    addChatMessage(`Error: ${data.error}`, 'assistant', server.name);
+                } else {
+                    addChatMessage(data.response || 'I processed your request.', 'assistant', server.name);
+                }
+                
+            } catch (e) {
+                removeChatMessage(thinkingId);
+                addChatMessage(`Failed to connect to ${server.name}. Please check if the server is running.`, 'assistant', server.name);
+            }
+        }
+        
+        // Handle Enter key in prompt input
+        function handlePromptKeypress(event) {
+            if (event.key === 'Enter') {
+                sendPrompt();
+            }
+        }
+        
+        // Add message to chat
+        function addChatMessage(content, type, serverName = null, isThinking = false) {
+            const chatMessages = document.getElementById('chatMessages');
+            const welcome = chatMessages.querySelector('.chat-welcome');
+            if (welcome) welcome.style.display = 'none';
+            
+            const messageId = 'msg_' + Date.now();
+            const avatar = type === 'user' ? '👤' : '🤖';
+            
+            const messageHtml = `
+                <div class="chat-message ${type}" id="${messageId}">
+                    <div class="message-avatar ${type}">${avatar}</div>
+                    <div class="message-content">
+                        ${isThinking ? '<em>Thinking...</em>' : content}
+                        ${serverName ? `<div class="server-used">🔗 via ${serverName}</div>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageId;
+        }
+        
+        // Remove message from chat
+        function removeChatMessage(id) {
+            const msg = document.getElementById(id);
+            if (msg) msg.remove();
+        }
+
+        // ========================================
+        // Documentation Tab Functions
+        // ========================================
+        
+        let generatedDocs = '';
+        
+        // Populate MCP server dropdown in docs tab
+        function populateDocsServers() {
+            const select = document.getElementById('docsMcpServer');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">Select MCP Server...</option>' +
+                mcpServers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+        
+        // Handle MCP server change in docs tab
+        function onDocServerChange() {
+            const serverId = document.getElementById('docsMcpServer').value;
+            const repoSelect = document.getElementById('docsRepository');
+            const repoUrl = document.getElementById('docsRepoUrl');
+            
+            if (serverId) {
+                repoSelect.disabled = false;
+                // Populate with Trimble Connect repos
+                repoSelect.innerHTML = `
+                    <option value="">Select Repository...</option>
+                    <option value="Trimble-Connect/trimble-connect-platform">trimble-connect-platform</option>
+                    <option value="Trimble-Connect/cloud-files-service-utils">cloud-files-service-utils</option>
+                    <option value="Trimble-Connect/trimble-connect-permissions-service">trimble-connect-permissions-service</option>
+                    <option value="Trimble-Connect/trimble-connect-files-service">trimble-connect-files-service</option>
+                    <option value="Trimble-Connect/tc-api-gateway">tc-api-gateway</option>
+                    <option value="Trimble-Connect/tc-auth-service">tc-auth-service</option>
+                    <option value="Trimble-Connect/tc-project-service">tc-project-service</option>
+                    <option value="custom">Enter custom URL</option>
+                `;
+            } else {
+                repoSelect.disabled = true;
+                repoSelect.innerHTML = '<option value="">Select Repository...</option>';
+            }
+        }
+        
+        // Generate documentation
+        async function generateDocumentation() {
+            const serverId = document.getElementById('docsMcpServer').value;
+            const repoSelect = document.getElementById('docsRepository').value;
+            const repoUrl = document.getElementById('docsRepoUrl').value.trim();
+            const docType = document.getElementById('docsType').value;
+            const docFormat = document.getElementById('docsFormat').value;
+            
+            const repository = repoUrl || repoSelect;
+            
+            if (!serverId) {
+                showToast('Please select an MCP server', 'error');
+                return;
+            }
+            
+            if (!repository || repository === 'custom') {
+                showToast('Please select or enter a repository', 'error');
+                return;
+            }
+            
+            // Show progress
+            document.getElementById('docsProgress').style.display = 'flex';
+            document.getElementById('docsOutput').style.display = 'none';
+            
+            const server = mcpServers.find(s => s.id === serverId);
+            const progressText = serverId === 'aws-docs' 
+                ? 'Connecting to AWS Documentation MCP Server...'
+                : 'Analyzing repository structure...';
+            document.getElementById('docsProgressText').textContent = progressText;
+            
+            // Check if server is connected for AWS docs
+            if (serverId === 'aws-docs' && server && !server.connected) {
+                document.getElementById('docsProgressText').textContent = 'Starting AWS Documentation MCP Server...';
+            }
+            
+            try {
+                const response = await fetch('/api/docs/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        server_id: serverId,
+                        repository: repository,
+                        doc_type: docType,
+                        format: docFormat
+                    })
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('docsProgress').style.display = 'none';
+                
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+                
+                // Show generated documentation
+                generatedDocs = data.documentation || data.content || 'Documentation generated successfully.';
+                document.getElementById('docsContent').textContent = generatedDocs;
+                document.getElementById('docsOutput').style.display = 'block';
+                showToast('Documentation generated successfully!', 'success');
+                
+            } catch (e) {
+                document.getElementById('docsProgress').style.display = 'none';
+                showToast('Failed to generate documentation: ' + e.message, 'error');
+            }
+        }
+        
+        // Copy documentation to clipboard
+        function copyDocumentation() {
+            navigator.clipboard.writeText(generatedDocs).then(() => {
+                showToast('Documentation copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Failed to copy', 'error');
+            });
+        }
+        
+        // Download documentation
+        async function downloadDocumentation() {
+            const format = document.getElementById('docsFormat').value;
+            const docType = document.getElementById('docsType').value;
+            const serverId = document.getElementById('docsMcpServer').value;
+            const repo = document.getElementById('docsRepository').value || document.getElementById('docsRepoUrl').value;
+            const repoName = repo.split('/').pop() || 'documentation';
+            
+            // Check if this is a diagram server - generate with embedded diagram
+            if (serverId === 'aws-diagram' || (serverId === 'aws-docs' && docType === 'architecture')) {
+                await downloadWithDiagram(repo, format, repoName);
+                return;
+            }
+            
+            if (!generatedDocs || generatedDocs.trim() === '') {
+                showToast('No documentation to download. Please generate documentation first.', 'error');
+                return;
+            }
+            
+            try {
+                if (format === 'pdf') {
+                    // Generate PDF using jsPDF
+                    generatePDF(repoName, docType, generatedDocs);
+                    return;
+                }
+                
+                let content = generatedDocs;
+                let extension = 'md';
+                let mimeType = 'text/markdown';
+                
+                if (format === 'html') {
+                    // Convert markdown to basic HTML
+                    content = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${repoName} - ${docType} Documentation</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { color: #1a1a2e; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+        pre { background: #1a1a2e; color: #e4e4e4; padding: 15px; border-radius: 8px; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+<pre>${generatedDocs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+</body>
+</html>`;
+                    extension = 'html';
+                    mimeType = 'text/html';
+                }
+                
+                const filename = `${repoName}_${docType}.${extension}`;
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                showToast(`Downloaded ${filename}`, 'success');
+            } catch (e) {
+                console.error('Download error:', e);
+                showToast('Failed to download: ' + e.message, 'error');
+            }
+        }
+        
+        // Download documentation with diagram generated server-side
+        async function downloadWithDiagram(repository, format, repoName) {
+            showToast('Generating diagram and documentation... This may take a moment.', 'info');
+            
+            try {
+                const response = await fetch('/api/docs/generate-with-diagram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repository: repository,
+                        include_diagram: true,
+                        output_format: format === 'pdf' ? 'html' : format
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    showToast(data.error || 'Failed to generate documentation', 'error');
+                    return;
+                }
+                
+                const content = data.documentation;
+                let extension = format === 'html' ? 'html' : 'md';
+                let mimeType = format === 'html' ? 'text/html' : 'text/markdown';
+                
+                // For PDF, we generate from HTML
+                if (format === 'pdf') {
+                    // Use the HTML content to generate PDF with embedded diagram
+                    generatePDFFromHTML(repoName, data.documentation);
+                    return;
+                }
+                
+                const filename = `${repoName}_architecture.${extension}`;
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                const diagramStatus = data.image_generated ? '(with diagram)' : '(diagram pending)';
+                showToast(`Downloaded ${filename} ${diagramStatus}`, 'success');
+                
+            } catch (e) {
+                console.error('Download with diagram error:', e);
+                showToast('Failed to generate: ' + e.message, 'error');
+            }
+        }
+        
+        // Generate PDF from HTML content with embedded images
+        function generatePDFFromHTML(repoName, htmlContent) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                // Extract base64 image from HTML if present
+                const imgMatch = htmlContent.match(/data:image\/png;base64,([^"']+)/);
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 15;
+                let yPosition = margin;
+                
+                // Title
+                doc.setFontSize(20);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(26, 26, 46);
+                doc.text(`AWS Architecture - ${repoName}`, margin, yPosition);
+                yPosition += 15;
+                
+                // Separator
+                doc.setDrawColor(74, 144, 217);
+                doc.setLineWidth(0.5);
+                doc.line(margin, yPosition, pageWidth - margin, yPosition);
+                yPosition += 10;
+                
+                // Add image if present
+                if (imgMatch && imgMatch[1]) {
+                    try {
+                        const imgData = 'data:image/png;base64,' + imgMatch[1];
+                        const imgWidth = pageWidth - (margin * 2);
+                        const imgHeight = imgWidth * 0.6; // Approximate aspect ratio
+                        
+                        // Check if image fits on current page
+                        if (yPosition + imgHeight > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        
+                        doc.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+                        yPosition += imgHeight + 10;
+                        
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'italic');
+                        doc.setTextColor(100, 100, 100);
+                        doc.text('Figure: AWS Architecture Diagram', pageWidth / 2, yPosition, { align: 'center' });
+                        yPosition += 10;
+                    } catch (imgErr) {
+                        console.error('Error adding image to PDF:', imgErr);
+                    }
+                }
+                
+                // Extract and add text content
+                const textContent = htmlContent
+                    .replace(/<[^>]*>/g, '\n')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(50, 50, 50);
+                
+                const lines = doc.splitTextToSize(textContent, pageWidth - (margin * 2));
+                
+                for (const line of lines) {
+                    if (yPosition > pageHeight - margin - 10) {
+                        doc.addPage();
+                        yPosition = margin;
+                    }
+                    doc.text(line, margin, yPosition);
+                    yPosition += 5;
+                }
+                
+                // Footer
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`Generated by Jarvis Agent | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+                }
+                
+                doc.save(`${repoName}_architecture.pdf`);
+                showToast(`Downloaded ${repoName}_architecture.pdf`, 'success');
+                
+            } catch (e) {
+                console.error('PDF generation error:', e);
+                showToast('Failed to generate PDF: ' + e.message, 'error');
+            }
+        }
+        
+        // Generate PDF from documentation content
+        function generatePDF(repoName, docType, content) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 15;
+                const maxWidth = pageWidth - (margin * 2);
+                let yPosition = margin;
+                
+                // Add title
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(26, 26, 46); // Dark blue
+                doc.text(`${repoName} - ${docType.charAt(0).toUpperCase() + docType.slice(1)} Documentation`, margin, yPosition);
+                yPosition += 12;
+                
+                // Add separator line
+                doc.setDrawColor(100, 100, 100);
+                doc.line(margin, yPosition, pageWidth - margin, yPosition);
+                yPosition += 8;
+                
+                // Process content
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(50, 50, 50);
+                
+                // Split content into lines
+                const lines = content.split('\n');
+                
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+                    
+                    // Check for headers
+                    if (line.startsWith('# ')) {
+                        yPosition += 5;
+                        doc.setFontSize(16);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(26, 26, 46);
+                        line = line.substring(2);
+                    } else if (line.startsWith('## ')) {
+                        yPosition += 4;
+                        doc.setFontSize(14);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(40, 40, 80);
+                        line = line.substring(3);
+                    } else if (line.startsWith('### ')) {
+                        yPosition += 3;
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(60, 60, 100);
+                        line = line.substring(4);
+                    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'normal');
+                        line = '  • ' + line.substring(2);
+                    } else if (line.startsWith('```')) {
+                        // Code block - skip the markers
+                        doc.setFontSize(9);
+                        doc.setFont('courier', 'normal');
+                        doc.setTextColor(80, 80, 80);
+                        continue;
+                    } else {
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(50, 50, 50);
+                    }
+                    
+                    // Wrap text
+                    const splitLines = doc.splitTextToSize(line, maxWidth);
+                    
+                    for (const splitLine of splitLines) {
+                        // Check if we need a new page
+                        if (yPosition > pageHeight - margin - 10) {
+                            doc.addPage();
+                            yPosition = margin;
+                            
+                            // Add page header
+                            doc.setFontSize(8);
+                            doc.setTextColor(150, 150, 150);
+                            doc.text(`${repoName} - Page ${doc.internal.getNumberOfPages()}`, margin, yPosition);
+                            yPosition += 8;
+                        }
+                        
+                        doc.text(splitLine, margin, yPosition);
+                        yPosition += 5;
+                    }
+                }
+                
+                // Add footer to all pages
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(
+                        `Generated by Jarvis Agent | Page ${i} of ${totalPages}`,
+                        pageWidth / 2,
+                        pageHeight - 8,
+                        { align: 'center' }
+                    );
+                }
+                
+                // Save the PDF
+                const filename = `${repoName}_${docType}.pdf`;
+                doc.save(filename);
+                showToast(`Downloaded ${filename}`, 'success');
+                
+            } catch (e) {
+                console.error('PDF generation error:', e);
+                showToast('Failed to generate PDF: ' + e.message, 'error');
+            }
+        }
+
+        // Initialize
+        checkHealth();
+        setInterval(checkHealth, 30000);
+        loadServers();
+        populateDocsServers();
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    container_name: mcp-server
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - JIRA_BASE_URL=${JIRA_BASE_URL}
+      - JIRA_USERNAME=${JIRA_USERNAME}
+      - JIRA_PROJECT_KEY=${JIRA_PROJECT_KEY}
+      - BITBUCKET_API_TOKEN=${BITBUCKET_API_TOKEN}
+      - BITBUCKET_BASE_URL=${BITBUCKET_BASE_URL}
+      - BITBUCKET_USERNAME=${BITBUCKET_USERNAME}
+      - BITBUCKET_REPO_NAME=${BITBUCKET_REPO_NAME}
+      - BITBUCKET_PROJECT_KEY=${BITBUCKET_PROJECT_KEY}
+      - BITBUCKET_BRANCH=${BITBUCKET_BRANCH}
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_BASE_URL=${GITHUB_BASE_URL}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - GITHUB_BRANCH=${GITHUB_BRANCH}
+      # MEND Configuration
+      - MEND_API_URL=${MEND_API_URL}
+      - MEND_USER_KEY=${MEND_USER_KEY}
+      - MEND_ORG_TOKEN=${MEND_ORG_TOKEN}
+      - MEND_PROJECT_TOKEN=${MEND_PROJECT_TOKEN}
+      # Email Configuration
+      # - SMTP_SERVER=${SMTP_SERVER}
+      # - SMTP_PORT=${SMTP_PORT}
+      # - SENDER_EMAIL=${SENDER_EMAIL}
+      # - SENDER_PASSWORD=${SENDER_PASSWORD}
+    restart: unless-stopped
