@@ -1,0 +1,51 @@
+name: ReAct — deploy to Azure Container Apps
+
+# Triggers after the ReAct build workflow succeeds, or manually.
+
+on:
+  workflow_run:
+    workflows: ["ReAct — build & push images to GHCR"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_RG: ${{ vars.REACT_AZURE_RG }}
+  API_NAME: ${{ vars.REACT_API_NAME }}
+  UI_NAME: ${{ vars.REACT_UI_NAME }}
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/react-pr-api:latest
+  UI_IMAGE: ghcr.io/${{ github.repository_owner }}/react-pr-ui:latest
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update backend container app
+        run: |
+          az containerapp update \
+            -g "$AZURE_RG" -n "$API_NAME" \
+            --image "$BACKEND_IMAGE"
+
+      - name: Update UI container app
+        run: |
+          az containerapp update \
+            -g "$AZURE_RG" -n "$UI_NAME" \
+            --image "$UI_IMAGE"
+
+      - name: Show app URLs
+        run: |
+          API_URL=$(az containerapp show -g "$AZURE_RG" -n "$API_NAME" --query properties.configuration.ingress.fqdn -o tsv)
+          UI_URL=$(az containerapp show -g "$AZURE_RG" -n "$UI_NAME" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Backend: https://$API_URL"
+          echo "UI:      https://$UI_URL"
