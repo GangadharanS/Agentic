@@ -1,0 +1,17 @@
+{
+  "$comment": "Azure Static Web Apps config. Either (a) link a backend via SWA portal so /api/* is auto-routed, or (b) keep the rewrite below and set BACKEND_URL.",
+  "routes": [
+    {
+      "route": "/api/*",
+      "rewrite": "https://REPLACE-WITH-BACKEND.azurewebsites.net/api/*"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/*.{png,jpg,jpeg,gif,svg,ico,css,js,woff2}"]
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  }
+}
