@@ -1,0 +1,15 @@
+# LangGraph multi-agent orchestration
+langgraph>=0.2.50
+langchain-core>=0.3.0
+
+# Persistent checkpointer (SQLite). Falls back to MemorySaver if absent.
+langgraph-checkpoint-sqlite>=2.0.0
+aiosqlite>=0.20.0
+
+google-generativeai>=0.8.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.3
+pydantic>=2.9.0
+httpx>=0.27.0
+
+# Reuses ReAct/ via sys.path injection — no install required if ReAct/ is a sibling folder.

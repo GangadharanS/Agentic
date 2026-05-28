@@ -1,6 +1,6 @@
-// In dev, Vite proxies /api → http://localhost:8090 (see vite.config.js).
-// In prod, set VITE_API_BASE to your deployed backend URL (e.g. https://react-pr-api.azurewebsites.net).
-// Leave it unset when SWA `routes` proxy /api/* to the backend for you.
+// Local dev: Vite proxies /api → localhost:8090 (vite.config.js).
+// Azure prod: leave VITE_API_BASE empty — nginx proxies /api → BACKEND_URL.
+// Optional bake-in: set VITE_API_BASE at build time to call backend directly.
 const BASE = (import.meta.env.VITE_API_BASE || '') + '/api';
 
 async function jsonOrThrow(response) {
