@@ -27,7 +27,9 @@ Optional repository variable:
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_BASE` | Backend FQDN baked into the UI bundle (e.g. `https://react-pr-api.xyz.eastus.azurecontainerapps.io`). Set after the first Azure deploy. |
+| `VITE_API_BASE` | Optional: bake backend URL into the UI bundle instead of nginx proxy. Leave empty if using `BACKEND_URL=http://react-pr-api` on the UI Container App (set automatically by `react-deploy-azure.yml`). |
+
+**UI `/api` proxy:** The UI image must include `nginx.conf.template` + `react-entrypoint.sh`. If `curl https://<ui>/api/health` returns HTML, rebuild the UI image (old GHCR build without the proxy config).
 
 Set at **Settings → Secrets and variables → Actions → Variables → New repository variable**.
 

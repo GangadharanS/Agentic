@@ -1,0 +1,14 @@
+# Google Agent Development Kit (multi-agent orchestration)
+google-adk>=1.0.0
+
+# Unified GenAI SDK — targets Vertex AI (GCP) or Google AI Studio
+google-genai>=1.0.0
+
+# Reviewer reuses ReAct/PRReviewAgent which uses the classic Gemini SDK
+google-generativeai>=0.8.0
+
+python-dotenv>=1.0.0
+aiohttp>=3.9.3
+
+# Reuses ../ReAct via sys.path injection (mcp_bridge + pr_reviewer) — no install
+# needed as long as ReAct/ is a sibling folder with its own deps installed.

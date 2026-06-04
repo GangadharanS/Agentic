@@ -20,6 +20,8 @@ Uses [GitHub's official MCP server](https://github.com/github/github-mcp-server)
 - **MCP Tools tab** lists every tool the MCP server exposes; you can enable/disable any tool for the agent and test calls.
 - **Settings tab** changes the MCP URL, Gemini model, and max rounds at runtime.
 
+See **[WORKFLOW_UI.md](WORKFLOW_UI.md)** for Mermaid sequence diagrams of the full UI flow (health, browse PRs, ReAct SSE stream, MCP tools, settings).
+
 ## Folder layout
 
 ```
@@ -31,6 +33,7 @@ ReAct/
 ├── prompts.py              # System prompts + default tool allowlist
 ├── mcp_bridge.py           # Imports MCPClient from ../mcp_client_app/
 ├── main.py                 # CLI version (same agent, no UI)
+├── WORKFLOW_UI.md          # sequence diagrams (UI → backend → ReAct → MCP)
 ├── requirements.txt
 ├── .env.example
 └── ui/                     # React + Vite app

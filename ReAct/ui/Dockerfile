@@ -12,8 +12,9 @@ FROM nginx:alpine
 RUN apk add --no-cache gettext
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY react-entrypoint.sh /react-entrypoint.sh
+RUN chmod +x /react-entrypoint.sh \
+    && rm -f /docker-entrypoint.d/20-envsubst-on-templates.sh
 EXPOSE 80
 ENV BACKEND_URL=
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/react-entrypoint.sh"]

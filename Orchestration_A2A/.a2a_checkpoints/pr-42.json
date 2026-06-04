@@ -1,0 +1,43 @@
+{
+  "repo_owner": "owner",
+  "repo_name": "repo",
+  "pr_number": 42,
+  "iteration": 0,
+  "max_iterations": 5,
+  "fix_severities": [
+    "blocking",
+    "major"
+  ],
+  "enable_tester": true,
+  "tester_timeout_s": 600,
+  "init_done": true,
+  "review_history": [],
+  "fixes_history": [],
+  "react_steps_log": [],
+  "test_history": [],
+  "a2a_events": [
+    {
+      "agent": "init",
+      "updated_keys": [
+        "error",
+        "init_done",
+        "next_action"
+      ],
+      "next_action": "push_max_iter",
+      "iteration": 0,
+      "next_agent": "pusher"
+    },
+    {
+      "agent": "pusher",
+      "updated_keys": [
+        "error"
+      ],
+      "next_action": "push_max_iter",
+      "iteration": 0,
+      "next_agent": null
+    }
+  ],
+  "error": "Pusher could not post review or stacked PR.",
+  "next_action": "push_max_iter",
+  "next_agent": null
+}

@@ -39,9 +39,11 @@ jobs:
 
       - name: Update UI container app
         run: |
+          # BACKEND_URL wires nginx /api/* -> internal API app (see ReAct/ui/nginx.conf.template).
           az containerapp update \
             -g "$AZURE_RG" -n "$UI_NAME" \
-            --image "$UI_IMAGE"
+            --image "$UI_IMAGE" \
+            --set-env-vars "BACKEND_URL=http://${API_NAME}"
 
       - name: Show app URLs
         run: |
