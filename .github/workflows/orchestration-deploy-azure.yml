@@ -1,12 +1,10 @@
 name: Orchestration — deploy to Azure Container Apps
 
-# Triggers after the Orchestration build workflow succeeds, or manually.
+# Called from orchestration-build-and-push.yml (secrets: inherit) or run manually.
+# Note: workflow_run cannot access repository secrets — do not use that trigger here.
 
 on:
-  workflow_run:
-    workflows: ["Orchestration — build & push image to GHCR"]
-    types: [completed]
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 env:
@@ -17,7 +15,6 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -26,35 +23,31 @@ jobs:
       - name: Check GitHub Actions configuration
         run: |
           set -e
-          missing=0
           if [ -z "${ORCH_AZURE_RG}" ] || [ -z "${ORCH_APP_NAME}" ]; then
             echo "::error::Set repository variables ORCH_AZURE_RG and ORCH_APP_NAME (Settings → Secrets and variables → Actions → Variables)."
-            missing=1
+            exit 1
           fi
-          if [ "${USE_OIDC}" != "true" ] && [ "${USE_CREDS}" != "true" ]; then
-            echo "::error::No Azure login secret found. Add AZURE_CREDENTIALS or OIDC secrets (same as ReAct deploy)."
-            missing=1
-          fi
-          exit "$missing"
         env:
           ORCH_AZURE_RG: ${{ vars.ORCH_AZURE_RG }}
           ORCH_APP_NAME: ${{ vars.ORCH_APP_NAME }}
-          USE_OIDC: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
-          USE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' }}
+
+      - name: Azure login (service principal JSON)
+        id: azure_login_creds
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure login (OIDC)
-        if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+        if: steps.azure_login_creds.outcome == 'failure'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Azure login (service principal JSON)
-        if: ${{ secrets.AZURE_CREDENTIALS != '' && !(secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '') }}
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Verify Azure CLI session
+        run: az account show --query name -o tsv
 
       - name: Update orchestrator container app
         env:

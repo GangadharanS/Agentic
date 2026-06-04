@@ -36,9 +36,9 @@ Set at **Settings → Secrets and variables → Actions → Variables → New re
 
 ### `react-deploy-azure.yml`
 
-- **Triggers**: automatically after a successful build, or manual run.
-- **Action**: `az containerapp update --image …:latest` on both the API and UI apps.
-- **Note**: it only **updates** existing Container Apps — the first-time create still goes through `ReAct/AZURE_DEPLOYMENT.md`.
+- **Triggers**: called automatically from `react-build-and-push.yml` after a successful build on `main`, or manual **Run workflow**.
+- **Action**: `az containerapp update --image …:latest` on both the API and UI apps; sets `MCP_SERVER_URL=http://github-mcp` on the API.
+- **Note**: uses `workflow_call` (not `workflow_run`) so Azure **secrets** are available. First-time create still goes through `ReAct/AZURE_DEPLOYMENT.md`.
 
 Required GitHub **variables** (Settings → Secrets and variables → Actions → **Variables** tab):
 
@@ -109,9 +109,9 @@ gh secret set AZURE_SUBSCRIPTION_ID -b"<subscriptionId>"
 
 ### `orchestration-deploy-azure.yml`
 
-- **Triggers**: after a successful Orchestration build, or manual run.
-- **Action**: updates the orchestrator Container App image and sets `MCP_SERVER_URL=http://<ORCH_MCP_APP_NAME>` (default `github-mcp`).
-- **First-time create**: `Orchestration/AZURE_DEPLOYMENT.md`
+- **Triggers**: called automatically from `orchestration-build-and-push.yml` after a successful build on `main`, or manual **Run workflow**.
+- **Action**: updates the orchestrator Container App image and sets `MCP_SERVER_URL=http://github-mcp`.
+- **Note**: uses `workflow_call` (not `workflow_run`) so Azure **secrets** are available. First-time create: `Orchestration/AZURE_DEPLOYMENT.md`.
 
 GitHub **variables**:
 

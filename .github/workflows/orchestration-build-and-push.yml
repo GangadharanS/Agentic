@@ -54,3 +54,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=pr-orchestrator
           cache-to: type=gha,scope=pr-orchestrator,mode=max
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/orchestration-deploy-azure.yml
+    secrets: inherit

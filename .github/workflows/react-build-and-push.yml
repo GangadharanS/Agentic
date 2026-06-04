@@ -110,3 +110,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=react-pr-ui
           cache-to: type=gha,scope=react-pr-ui,mode=max
+
+  deploy:
+    needs: [build-backend, build-ui]
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/react-deploy-azure.yml
+    secrets: inherit

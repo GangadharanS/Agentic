@@ -1,12 +1,10 @@
 name: ReAct — deploy to Azure Container Apps
 
-# Triggers after the ReAct build workflow succeeds, or manually.
+# Called from react-build-and-push.yml (secrets: inherit) or run manually.
+# Note: workflow_run cannot access repository secrets — do not use that trigger here.
 
 on:
-  workflow_run:
-    workflows: ["ReAct — build & push images to GHCR"]
-    types: [completed]
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 env:
@@ -19,7 +17,6 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -28,41 +25,32 @@ jobs:
       - name: Check GitHub Actions configuration
         run: |
           set -e
-          missing=0
           if [ -z "${REACT_AZURE_RG}" ] || [ -z "${REACT_API_NAME}" ] || [ -z "${REACT_UI_NAME}" ]; then
             echo "::error::Set repository variables REACT_AZURE_RG, REACT_API_NAME, REACT_UI_NAME (Settings → Secrets and variables → Actions → Variables)."
-            missing=1
+            exit 1
           fi
-          if [ "${USE_OIDC}" != "true" ] && [ "${USE_CREDS}" != "true" ]; then
-            echo "::error::No Azure login secret found on this repository."
-            echo "Add ONE of these under Settings → Secrets and variables → Actions → Repository secrets:"
-            echo "  • AZURE_CREDENTIALS — paste full JSON from: az ad sp create-for-rbac ... --sdk-auth  (easiest)"
-            echo "  • OR AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID — OIDC; also add federated credential in Entra ID"
-            echo "Use the same GitHub repo that runs this workflow (not a fork). Names are case-sensitive."
-            missing=1
-          fi
-          exit "$missing"
         env:
           REACT_AZURE_RG: ${{ vars.REACT_AZURE_RG }}
           REACT_API_NAME: ${{ vars.REACT_API_NAME }}
           REACT_UI_NAME: ${{ vars.REACT_UI_NAME }}
-          USE_OIDC: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
-          USE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' }}
 
-      # Prefer OIDC when all three IDs are set; otherwise one JSON secret (no federated credential).
+      - name: Azure login (service principal JSON)
+        id: azure_login_creds
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Azure login (OIDC)
-        if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+        if: steps.azure_login_creds.outcome == 'failure'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Azure login (service principal JSON)
-        if: ${{ secrets.AZURE_CREDENTIALS != '' && !(secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '') }}
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Verify Azure CLI session
+        run: az account show --query name -o tsv
 
       - name: Update backend container app
         run: |
@@ -74,7 +62,6 @@ jobs:
 
       - name: Update UI container app
         run: |
-          # BACKEND_URL wires nginx /api/* -> internal API app (see ReAct/ui/nginx.conf.template).
           az containerapp update \
             -g "$AZURE_RG" -n "$UI_NAME" \
             --image "$UI_IMAGE" \
