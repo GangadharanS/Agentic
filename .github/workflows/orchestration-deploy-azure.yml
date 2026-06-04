@@ -5,6 +5,15 @@ name: Orchestration — deploy to Azure Container Apps
 
 on:
   workflow_call:
+    secrets:
+      AZURE_CREDENTIALS:
+        required: false
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      AZURE_SUBSCRIPTION_ID:
+        required: false
   workflow_dispatch:
 
 env:
