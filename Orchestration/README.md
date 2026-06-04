@@ -113,6 +113,8 @@ docker run -d --name github-mcp -p 8000:8082 \
 
 ## Run
 
+### CLI
+
 ```bash
 # Defaults: max 5 iters, blocking+major severities, tester ON, SQLite checkpoint
 python main.py --repo owner/repo --pr 42
@@ -123,6 +125,17 @@ python main.py --repo owner/repo --pr 42 --max-iter 3 --severities blocking --no
 # Resume after Ctrl-C
 python main.py --repo owner/repo --pr 42 --resume
 ```
+
+### HTTP API (Container Apps / `server.py`)
+
+When deployed as a Container App, the image runs FastAPI on port **8091**:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/health` | Config / dependency check |
+| POST | `/api/orchestrate` | Run or resume orchestration (`{"repo":"owner/repo","pr":42}`) |
+
+See [`AZURE_DEPLOYMENT.md`](./AZURE_DEPLOYMENT.md) for Azure setup and curl examples.
 
 ## Configuration
 

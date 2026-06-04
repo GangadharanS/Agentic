@@ -6,6 +6,7 @@ Workflows only fire when files in their own subproject change.
 | Project | Workflow files | Triggered by changes in |
 |---------|----------------|--------------------------|
 | **ReAct** | `react-build-and-push.yml`, `react-deploy-azure.yml` | `ReAct/**`, `mcp_client_app/mcp_client.py` |
+| **Orchestration** | `orchestration-build-and-push.yml`, `orchestration-deploy-azure.yml` | `Orchestration/**`, `ReAct/**`, `mcp_client_app/mcp_client.py` |
 | _(future)_ RAG | _e.g._ `rag-build-and-push.yml` | `RAG/**` |
 | _(future)_ RAG_LangChain | _e.g._ `rag-langchain-build-and-push.yml` | `RAG_LangChain/**` |
 
@@ -39,15 +40,7 @@ Set at **Settings → Secrets and variables → Actions → Variables → New re
 - **Action**: `az containerapp update --image …:latest` on both the API and UI apps.
 - **Note**: it only **updates** existing Container Apps — the first-time create still goes through `ReAct/AZURE_DEPLOYMENT.md`.
 
-Required GitHub **secrets** (Settings → Secrets and variables → Actions → Secrets):
-
-| Secret | Source |
-|--------|--------|
-| `AZURE_CLIENT_ID` | `clientId` of the federated SP (see below) |
-| `AZURE_TENANT_ID` | Same |
-| `AZURE_SUBSCRIPTION_ID` | Same |
-
-Required GitHub **variables** (same screen, Variables tab):
+Required GitHub **variables** (Settings → Secrets and variables → Actions → **Variables** tab):
 
 | Variable | Example |
 |----------|---------|
@@ -55,24 +48,79 @@ Required GitHub **variables** (same screen, Variables tab):
 | `REACT_API_NAME` | `react-pr-api` |
 | `REACT_UI_NAME` | `react-pr-ui` |
 
-Setup the federated service principal once:
+Required GitHub **secrets** — use **either** option A or B (Settings → Actions → **Repository secrets**, not Dependabot/Codespaces):
+
+#### Option A — one secret (recommended if OIDC setup is painful)
+
+| Secret | Value |
+|--------|--------|
+| `AZURE_CREDENTIALS` | Entire JSON file from `az ad sp create-for-rbac ... --sdk-auth` |
 
 ```bash
-# 1. Create the SP scoped to your resource group
-az ad sp create-for-rbac \
-  --name "github-react-pr-ci" \
-  --role contributor \
-  --scopes /subscriptions/<SUB_ID>/resourceGroups/<RG_NAME> \
-  --json-auth
+SUB_ID=$(az account show --query id -o tsv)
+RG="rg-react-pr"
 
-# 2. Trust your repo's main branch
-az ad app federated-credential create --id <clientId> --parameters '{
-  "name": "github-main",
-  "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:<GH_OWNER>/<GH_REPO>:ref:refs/heads/main",
-  "audiences": ["api://AzureADTokenExchange"]
-}'
+az ad sp create-for-rbac \
+  --name "github-react-pr-deploy" \
+  --role contributor \
+  --scopes "/subscriptions/${SUB_ID}/resourceGroups/${RG}" \
+  --sdk-auth > azure-sp.json
+
+# CLI (repo must match the one that runs Actions)
+gh secret set AZURE_CREDENTIALS < azure-sp.json
+rm azure-sp.json
 ```
+
+#### Option B — OIDC (three secrets, no client password)
+
+| Secret | Source |
+|--------|--------|
+| `AZURE_CLIENT_ID` | `clientId` from SP |
+| `AZURE_TENANT_ID` | `tenantId` |
+| `AZURE_SUBSCRIPTION_ID` | `subscriptionId` |
+
+Plus federated credential in Entra ID (`subject` must match `repo:<owner>/<repo>:ref:refs/heads/main`).
+
+```bash
+gh secret set AZURE_CLIENT_ID -b"<clientId>"
+gh secret set AZURE_TENANT_ID -b"<tenantId>"
+gh secret set AZURE_SUBSCRIPTION_ID -b"<subscriptionId>"
+```
+
+### Secrets “not being set” / login still empty
+
+1. **Wrong tab** — use **Actions → Repository secrets**, not Environment (unless you add `environment:` to the job), Dependabot, or Codespaces.
+2. **Wrong repo** — secrets live on the GitHub repo that runs the workflow. Forks do not inherit upstream secrets.
+3. **Names** — exact spelling: `AZURE_CREDENTIALS` or `AZURE_CLIENT_ID` (not `AZURE_CLIENT_ID ` with spaces).
+4. **Variables vs secrets** — `REACT_AZURE_RG` is a **variable**, not a secret.
+5. **Confirm** — after `gh secret set`, run `gh secret list` (names only). Re-run **ReAct — deploy to Azure Container Apps** manually.
+6. **Org repo** — if the repo is under an organization, you need permission to add repository secrets (or an org admin must grant the secret to this repo).
+
+---
+
+## Orchestration workflows
+
+### `orchestration-build-and-push.yml`
+
+- **Triggers**: push to `main` touching `Orchestration/**` or `ReAct/**`, or manual run.
+- **Output**: `ghcr.io/<owner>/pr-orchestrator:latest` + `sha-<commit>`
+- **No Azure secrets** — uses `GITHUB_TOKEN` for GHCR.
+
+### `orchestration-deploy-azure.yml`
+
+- **Triggers**: after a successful Orchestration build, or manual run.
+- **Action**: updates the orchestrator Container App image and sets `MCP_SERVER_URL=http://<ORCH_MCP_APP_NAME>` (default `github-mcp`).
+- **First-time create**: `Orchestration/AZURE_DEPLOYMENT.md`
+
+GitHub **variables**:
+
+| Variable | Example |
+|----------|---------|
+| `ORCH_AZURE_RG` | `rg-react-pr` |
+| `ORCH_APP_NAME` | `pr-orchestrator` |
+| `ORCH_MCP_APP_NAME` | `github-mcp` (optional) |
+
+Uses the same Azure login **secrets** as ReAct (`AZURE_CREDENTIALS` or OIDC trio).
 
 ---
 

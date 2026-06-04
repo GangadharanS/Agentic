@@ -1,0 +1,74 @@
+name: Orchestration — deploy to Azure Container Apps
+
+# Triggers after the Orchestration build workflow succeeds, or manually.
+
+on:
+  workflow_run:
+    workflows: ["Orchestration — build & push image to GHCR"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_RG: ${{ vars.ORCH_AZURE_RG }}
+  APP_NAME: ${{ vars.ORCH_APP_NAME }}
+  MCP_APP_NAME: ${{ vars.ORCH_MCP_APP_NAME }}
+  IMAGE: ghcr.io/${{ github.repository_owner }}/pr-orchestrator:latest
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check GitHub Actions configuration
+        run: |
+          set -e
+          missing=0
+          if [ -z "${ORCH_AZURE_RG}" ] || [ -z "${ORCH_APP_NAME}" ]; then
+            echo "::error::Set repository variables ORCH_AZURE_RG and ORCH_APP_NAME (Settings → Secrets and variables → Actions → Variables)."
+            missing=1
+          fi
+          if [ "${USE_OIDC}" != "true" ] && [ "${USE_CREDS}" != "true" ]; then
+            echo "::error::No Azure login secret found. Add AZURE_CREDENTIALS or OIDC secrets (same as ReAct deploy)."
+            missing=1
+          fi
+          exit "$missing"
+        env:
+          ORCH_AZURE_RG: ${{ vars.ORCH_AZURE_RG }}
+          ORCH_APP_NAME: ${{ vars.ORCH_APP_NAME }}
+          USE_OIDC: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+          USE_CREDS: ${{ secrets.AZURE_CREDENTIALS != '' }}
+
+      - name: Azure login (OIDC)
+        if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure login (service principal JSON)
+        if: ${{ secrets.AZURE_CREDENTIALS != '' && !(secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '') }}
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update orchestrator container app
+        env:
+          MCP_APP_NAME: ${{ vars.ORCH_MCP_APP_NAME }}
+        run: |
+          MCP_NAME="${MCP_APP_NAME:-github-mcp}"
+          az containerapp update \
+            -g "$AZURE_RG" -n "$APP_NAME" \
+            --image "$IMAGE" \
+            --set-env-vars "MCP_SERVER_URL=http://${MCP_NAME}" "ORCH_CHECKPOINT_DB=/data/.orchestration_state.db"
+
+      - name: Show app URL
+        run: |
+          FQDN=$(az containerapp show -g "$AZURE_RG" -n "$APP_NAME" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Orchestrator: https://$FQDN"
+          echo "Health:       https://$FQDN/api/health"
+          echo "Run:          curl -X POST https://$FQDN/api/orchestrate -H 'Content-Type: application/json' -d '{\"repo\":\"owner/repo\",\"pr\":42}'"
