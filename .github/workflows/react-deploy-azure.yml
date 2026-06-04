@@ -66,25 +66,37 @@ jobs:
       - name: Verify Azure CLI session
         run: az account show --query name -o tsv
 
-      - name: Resolve container images (GHCR owner must be lowercase)
-        run: |
-          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/react-pr-api:latest" >> $GITHUB_ENV
-          echo "UI_IMAGE=ghcr.io/${OWNER}/react-pr-ui:latest" >> $GITHUB_ENV
-
       - name: Update backend container app
+        env:
+          GHCR_OWNER_VAR: ${{ vars.GHCR_OWNER }}
         run: |
+          if [ -n "${GHCR_OWNER_VAR}" ]; then
+            OWNER="${GHCR_OWNER_VAR}"
+          else
+            OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          fi
+          BACKEND_IMAGE="ghcr.io/${OWNER}/react-pr-api:latest"
           MCP_NAME="${MCP_APP_NAME:-github-mcp}"
+          echo "Deploying backend image: ${BACKEND_IMAGE}"
           az containerapp update \
             -g "$AZURE_RG" -n "$API_NAME" \
-            --image "$BACKEND_IMAGE" \
+            --image "${BACKEND_IMAGE}" \
             --set-env-vars "MCP_SERVER_URL=http://${MCP_NAME}"
 
       - name: Update UI container app
+        env:
+          GHCR_OWNER_VAR: ${{ vars.GHCR_OWNER }}
         run: |
+          if [ -n "${GHCR_OWNER_VAR}" ]; then
+            OWNER="${GHCR_OWNER_VAR}"
+          else
+            OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          fi
+          UI_IMAGE="ghcr.io/${OWNER}/react-pr-ui:latest"
+          echo "Deploying UI image: ${UI_IMAGE}"
           az containerapp update \
             -g "$AZURE_RG" -n "$UI_NAME" \
-            --image "$UI_IMAGE" \
+            --image "${UI_IMAGE}" \
             --set-env-vars "BACKEND_URL=http://${API_NAME}"
 
       - name: Show app URLs

@@ -68,19 +68,22 @@ jobs:
       - name: Verify Azure CLI session
         run: az account show --query name -o tsv
 
-      - name: Resolve container image (GHCR owner must be lowercase)
-        run: |
-          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          echo "IMAGE=ghcr.io/${OWNER}/pr-orchestrator:latest" >> $GITHUB_ENV
-
       - name: Update orchestrator container app
         env:
           MCP_APP_NAME: ${{ vars.ORCH_MCP_APP_NAME }}
+          GHCR_OWNER_VAR: ${{ vars.GHCR_OWNER }}
         run: |
           MCP_NAME="${MCP_APP_NAME:-github-mcp}"
+          if [ -n "${GHCR_OWNER_VAR}" ]; then
+            OWNER="${GHCR_OWNER_VAR}"
+          else
+            OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          fi
+          IMAGE="ghcr.io/${OWNER}/pr-orchestrator:latest"
+          echo "Deploying image: ${IMAGE}"
           az containerapp update \
             -g "$AZURE_RG" -n "$APP_NAME" \
-            --image "$IMAGE" \
+            --image "${IMAGE}" \
             --set-env-vars "MCP_SERVER_URL=http://${MCP_NAME}" "ORCH_CHECKPOINT_DB=/data/.orchestration_state.db"
 
       - name: Show app URL
