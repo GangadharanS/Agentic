@@ -4,7 +4,7 @@ name: Orchestration — build & push image to GHCR
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "Orchestration/**"
       - "ReAct/**"
@@ -57,6 +57,6 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     uses: ./.github/workflows/orchestration-deploy-azure.yml
     secrets: inherit

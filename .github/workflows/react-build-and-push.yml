@@ -5,7 +5,7 @@ name: ReAct — build & push images to GHCR
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "ReAct/**"
       - "mcp_client_app/mcp_client.py"
@@ -113,6 +113,6 @@ jobs:
 
   deploy:
     needs: [build-backend, build-ui]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     uses: ./.github/workflows/react-deploy-azure.yml
     secrets: inherit
