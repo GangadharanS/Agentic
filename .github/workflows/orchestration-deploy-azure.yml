@@ -20,7 +20,6 @@ env:
   AZURE_RG: ${{ vars.ORCH_AZURE_RG }}
   APP_NAME: ${{ vars.ORCH_APP_NAME }}
   MCP_APP_NAME: ${{ vars.ORCH_MCP_APP_NAME }}
-  IMAGE: ghcr.io/${{ github.repository_owner }}/pr-orchestrator:latest
 
 jobs:
   deploy:
@@ -48,6 +47,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure login (OIDC)
+        id: azure_login_oidc
         if: steps.azure_login_creds.outcome == 'failure'
         uses: azure/login@v2
         with:
@@ -55,8 +55,23 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Azure login failed — add AZURE_CREDENTIALS secret
+        if: steps.azure_login_creds.outcome == 'failure' && steps.azure_login_oidc.outcome == 'failure'
+        run: |
+          echo "::error::Azure login failed. Add repository secret AZURE_CREDENTIALS:"
+          echo "  1. Run locally: az ad sp create-for-rbac --name github-agentic-deploy --role contributor --scopes /subscriptions/<SUB>/resourceGroups/rg-react-pr --sdk-auth"
+          echo "  2. Copy the entire JSON output"
+          echo "  3. GitHub → Settings → Secrets and variables → Actions → New secret → name: AZURE_CREDENTIALS"
+          echo "  (Or set AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID for OIDC)"
+          exit 1
+
       - name: Verify Azure CLI session
         run: az account show --query name -o tsv
+
+      - name: Resolve container image (GHCR owner must be lowercase)
+        run: |
+          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE=ghcr.io/${OWNER}/pr-orchestrator:latest" >> $GITHUB_ENV
 
       - name: Update orchestrator container app
         env:
