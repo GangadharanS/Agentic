@@ -9,7 +9,6 @@ on:
       - "Orchestration/**"
       - "ReAct/**"
       - "mcp_client_app/mcp_client.py"
-      - ".github/workflows/orchestration-build-and-push.yml"
   workflow_dispatch:
 
 env:

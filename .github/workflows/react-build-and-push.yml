@@ -9,7 +9,6 @@ on:
     paths:
       - "ReAct/**"
       - "mcp_client_app/mcp_client.py"
-      - ".github/workflows/react-build-and-push.yml"
   workflow_dispatch:
     inputs:
       vite_api_base:

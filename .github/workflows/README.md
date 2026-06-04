@@ -47,6 +47,7 @@ Required GitHub **variables** (Settings → Secrets and variables → Actions �
 | `REACT_AZURE_RG` | `rg-react-pr` |
 | `REACT_API_NAME` | `react-pr-api` |
 | `REACT_UI_NAME` | `react-pr-ui` |
+| `REACT_MCP_APP_NAME` | `github-mcp` (optional; wired to `MCP_SERVER_URL` on the API app) |
 
 Required GitHub **secrets** — use **either** option A or B (Settings → Actions → **Repository secrets**, not Dependabot/Codespaces):
 
